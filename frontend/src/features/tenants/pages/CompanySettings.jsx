@@ -5,6 +5,7 @@ import { MdBusiness, MdPersonAdd, MdDelete, MdPayment, MdArrowBack, MdShield } f
 import tenantService from '../services/tenantService';
 import { Logger } from '../../../utils';
 import UserProfileSkeleton from '../../users/skeletons/UserProfileSkeleton';
+import { generateInitialsAvatar } from '../../../utils/avatarUtils';
 
 const CompanySettings = () => {
     const navigate = useNavigate();
@@ -135,97 +136,106 @@ const CompanySettings = () => {
     if (loading) return <UserProfileSkeleton />;
 
     return (
-        <div className="w-full relative min-h-[calc(100vh-110px)] flex flex-col">
-            <div className="w-full max-w-6xl mx-auto space-y-8 pb-12 flex-1">
-                <div className="flex items-center justify-between gap-4 mb-6">
-                    <div className="flex items-center gap-4">
-                        <button
-                            onClick={() => navigate('/profile')}
-                            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors"
-                        >
-                            <MdArrowBack className="w-6 h-6 text-gray-600 dark:text-gray-400" />
-                        </button>
-                        <h1 className="text-2xl md:text-3xl font-bold text-gray-800 dark:text-gray-200">
-                            Workspace Settings: {details?.name}
-                        </h1>
-                    </div>
-                    {successMessage && (
-                        <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-2 rounded relative text-sm animate-fade-in-down">
-                            {successMessage}
+        <div className="w-full relative">
+            <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-4">
+                    <button
+                        onClick={() => navigate('/profile')}
+                        className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors"
+                    >
+                        <MdArrowBack className="w-6 h-6 text-gray-600 dark:text-gray-400" />
+                    </button>
+                    <h1 className="text-2xl md:text-3xl font-bold text-gray-800 dark:text-gray-200">
+                        Workspace Settings
+                    </h1>
+                </div>
+            </div>
+
+            {successMessage && (
+                <div className="mb-6 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-700 dark:text-green-300 px-4 py-3 rounded-lg">
+                    {successMessage}
+                </div>
+            )}
+
+            {error && (
+                <div className="mb-6 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 px-4 py-3 rounded-lg">
+                    {error}
+                </div>
+            )}
+
+            <div className="w-full grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* --- Left Column: Company Info & Billing --- */}
+                <div className="lg:col-span-1 space-y-6">
+                    {/* Company Info Card */}
+                    <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 space-y-4">
+                        <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 flex items-center gap-2">
+                            <MdBusiness className="text-indigo-500" /> Company Info
+                        </h3>
+                        <div className="space-y-3">
+                            <div className="flex justify-between text-sm">
+                                <span className="text-gray-500 dark:text-gray-400">Workspace Name:</span>
+                                <span className="font-semibold text-gray-800 dark:text-gray-200">{details.name}</span>
+                            </div>
+                            <div className="flex justify-between text-sm">
+                                <span className="text-gray-500 dark:text-gray-400">URL Slug:</span>
+                                <span className="font-mono text-gray-800 dark:text-gray-200">/{details.slug}</span>
+                            </div>
+                            <div className="flex justify-between text-sm">
+                                <span className="text-gray-500 dark:text-gray-400">Created At:</span>
+                                <span className="text-gray-800 dark:text-gray-200">{new Date(details.createdAt).toLocaleDateString()}</span>
+                            </div>
                         </div>
-                    )}
+                    </div>
+
+                    {/* Subscription & Billing Card */}
+                    <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 space-y-4">
+                        <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 flex items-center gap-2">
+                            <MdPayment className="text-indigo-500" /> Subscription & Billing
+                        </h3>
+                        <div className="space-y-4">
+                            <div className="bg-indigo-50 dark:bg-indigo-900/20 p-4 rounded-md">
+                                <div className="text-xs text-indigo-600 dark:text-indigo-400 uppercase font-bold tracking-wider mb-1">
+                                    Current Plan
+                                </div>
+                                <div className="text-xl font-bold text-gray-900 dark:text-white">
+                                    {details.subscription.planName}
+                                </div>
+                            </div>
+
+                            <div className="space-y-2">
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-gray-500 dark:text-gray-400">Status:</span>
+                                    <span className="bg-green-100 text-green-800 px-2 py-0.5 rounded-full text-xs font-medium dark:bg-green-900 dark:text-green-300">
+                                        {details.subscription.status}
+                                    </span>
+                                </div>
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-gray-500 dark:text-gray-400">Monthly Cost:</span>
+                                    <span className="font-bold text-gray-800 dark:text-gray-200">
+                                        {details.subscription.currency} {details.subscription.totalCost.toFixed(2)}
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div className="pt-4 border-t border-gray-100 dark:border-gray-700">
+                                <button
+                                    disabled
+                                    className="w-full py-2 bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400 rounded-md cursor-not-allowed text-sm font-medium"
+                                >
+                                    Manage Billing (Coming Soon)
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    {/* --- Left Column: Info & Plan --- */}
-                    <div className="lg:col-span-1 space-y-6">
-                        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 space-y-4">
-                            <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 flex items-center gap-2">
-                                <MdBusiness className="text-indigo-500" /> Company Info
-                            </h3>
-                            <div className="space-y-3">
-                                <div className="flex justify-between text-sm">
-                                    <span className="text-gray-500 dark:text-gray-400">Workspace Name:</span>
-                                    <span className="font-semibold text-gray-800 dark:text-gray-200">{details.name}</span>
-                                </div>
-                                <div className="flex justify-between text-sm">
-                                    <span className="text-gray-500 dark:text-gray-400">URL Slug:</span>
-                                    <span className="font-mono text-gray-800 dark:text-gray-200">/{details.slug}</span>
-                                </div>
-                                <div className="flex justify-between text-sm">
-                                    <span className="text-gray-500 dark:text-gray-400">Created At:</span>
-                                    <span className="text-gray-800 dark:text-gray-200">{new Date(details.createdAt).toLocaleDateString()}</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 space-y-4 border-l-4 border-indigo-500">
-                            <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 flex items-center gap-2">
-                                <MdPayment className="text-indigo-500" /> Subscription & Billing
-                            </h3>
-                            <div className="space-y-4">
-                                <div className="bg-indigo-50 dark:bg-indigo-900/20 p-4 rounded-md">
-                                    <div className="text-xs text-indigo-600 dark:text-indigo-400 uppercase font-bold tracking-wider mb-1">
-                                        Current Plan
-                                    </div>
-                                    <div className="text-xl font-bold text-gray-900 dark:text-white">
-                                        {details.subscription.planName}
-                                    </div>
-                                </div>
-
-                                <div className="space-y-2">
-                                    <div className="flex justify-between text-sm">
-                                        <span className="text-gray-500 dark:text-gray-400">Status:</span>
-                                        <span className="bg-green-100 text-green-800 px-2 py-0.5 rounded-full text-xs font-medium dark:bg-green-900 dark:text-green-300">
-                                            {details.subscription.status}
-                                        </span>
-                                    </div>
-                                    <div className="flex justify-between text-sm">
-                                        <span className="text-gray-500 dark:text-gray-400">Monthly Cost:</span>
-                                        <span className="font-bold text-gray-800 dark:text-gray-200">
-                                            {details.subscription.currency} {details.subscription.totalCost.toFixed(2)}
-                                        </span>
-                                    </div>
-                                </div>
-
-                                <div className="pt-4 border-t border-gray-100 dark:border-gray-700">
-                                    <button
-                                        disabled
-                                        className="w-full py-2 bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400 rounded-md cursor-not-allowed text-sm font-medium"
-                                    >
-                                        Manage Billing (Coming Soon)
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* --- Right Column: User Management --- */}
-                    <div className="lg:col-span-2 space-y-6">
-                        <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
-                            <div className="p-6 border-b border-gray-100 dark:border-gray-700 flex flex-col xl:flex-row xl:items-end justify-between gap-4">
+                {/* --- Right Column: User Management --- */}
+                <div className="lg:col-span-2">
+                    <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
+                        <div className="p-6 border-b border-gray-100 dark:border-gray-700">
+                            <div className="flex flex-col xl:flex-row xl:items-end justify-between gap-4">
                                 <div className="space-y-1">
-                                    <h3 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                                    <h3 className="text-xl font-bold text-gray-900 dark:text-white">
                                         User Management
                                     </h3>
                                     <p className="text-xs text-gray-500 dark:text-gray-400">
@@ -260,63 +270,63 @@ const CompanySettings = () => {
                                     </button>
                                 </form>
                             </div>
+                        </div>
 
-                            {error && <div className="px-6 py-3 bg-red-50 text-red-600 text-sm border-b border-red-100 dark:bg-red-900/20 dark:text-red-400 dark:border-red-900/30">{error}</div>}
-
-                            <div className="overflow-x-auto text-sm">
-                                <table className="w-full text-left">
-                                    <thead className="bg-gray-50 dark:bg-gray-700/50 text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                        <tr>
-                                            <th className="px-6 py-3">User</th>
-                                            <th className="px-6 py-3">Role</th>
-                                            <th className="px-6 py-3 text-right">Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-                                        {users.map((u) => (
-                                            <tr key={u.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
-                                                <td className="px-6 py-4 flex items-center gap-3">
-                                                    {u.avatarUrl ? (
-                                                        <img src={u.avatarUrl} className="w-10 h-10 rounded-full border border-gray-200 dark:border-gray-600" alt={u.name} />
-                                                    ) : (
-                                                        <div className="w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center text-indigo-700 dark:text-indigo-200 font-bold">
-                                                            {u.name?.charAt(0).toUpperCase() || '?'}
-                                                        </div>
-                                                    )}
-                                                    <div>
-                                                        <div className="font-medium text-gray-900 dark:text-white">{u.name}</div>
-                                                        <div className="text-xs text-gray-500 dark:text-gray-400">{u.email}</div>
-                                                    </div>
-                                                </td>
-                                                <td className="px-6 py-4">
-                                                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${u.role === 'OWNER' ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300 border border-purple-200 dark:border-purple-800' :
+                        <div className="overflow-x-auto text-sm">
+                            <table className="w-full text-left">
+                                <thead className="bg-gray-50 dark:bg-gray-700/50 text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                    <tr>
+                                        <th className="px-6 py-3">User</th>
+                                        <th className="px-6 py-3">Role</th>
+                                        <th className="px-6 py-3 text-right">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                                    {users.map((u) => (
+                                        <tr key={u.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+                                            <td className="px-6 py-4 flex items-center gap-3">
+                                                <img
+                                                    src={u.avatarUrl || generateInitialsAvatar(u.name || u.email || 'User', 40)}
+                                                    onError={(e) => {
+                                                        e.target.onerror = null;
+                                                        e.target.src = generateInitialsAvatar(u.name || u.email || 'User', 40);
+                                                    }}
+                                                    className="w-10 h-10 rounded-full border border-gray-200 dark:border-gray-600"
+                                                    alt={u.name}
+                                                />
+                                                <div>
+                                                    <div className="font-medium text-gray-900 dark:text-white">{u.name}</div>
+                                                    <div className="text-xs text-gray-500 dark:text-gray-400">{u.email}</div>
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${u.role === 'OWNER' ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300 border border-purple-200 dark:border-purple-800' :
                                                         u.role === 'ADMIN' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300 border border-blue-200 dark:border-blue-800' :
                                                             u.role === 'MANAGER' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800' :
                                                                 u.role === 'MEMBER' ? 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/40 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800' :
                                                                     'bg-gray-100 text-gray-800 dark:bg-gray-900/40 dark:text-gray-300 border border-gray-200 dark:border-gray-800'
-                                                        }`}>
-                                                        {u.role}
-                                                    </span>
-                                                </td>
-                                                <td className="px-6 py-4 text-right">
-                                                    <button
-                                                        onClick={() => setManagingUser(u)}
-                                                        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 border border-gray-300 dark:border-gray-600 text-xs font-medium rounded text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
-                                                    >
-                                                        Manage
-                                                    </button>
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
+                                                    }`}>
+                                                    {u.role}
+                                                </span>
+                                            </td>
+                                            <td className="px-6 py-4 text-right">
+                                                <button
+                                                    onClick={() => setManagingUser(u)}
+                                                    className="inline-flex items-center gap-1.5 px-2.5 py-1.5 border border-gray-300 dark:border-gray-600 text-xs font-medium rounded text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
+                                                >
+                                                    Manage
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
 
-                            <div className="p-4 bg-gray-50 dark:bg-gray-700/30 text-center border-t border-gray-100 dark:border-gray-700">
-                                <p className="text-xs text-gray-500 dark:text-gray-400">
-                                    {users.length} active members. Plan supports up to {details.subscription.maxUsers || 'unlimited'} users.
-                                </p>
-                            </div>
+                        <div className="p-4 bg-gray-50 dark:bg-gray-700/30 text-center border-t border-gray-100 dark:border-gray-700">
+                            <p className="text-xs text-gray-500 dark:text-gray-400">
+                                {users.length} active members. Plan supports up to {details.subscription.maxUsers || 'unlimited'} users.
+                            </p>
                         </div>
                     </div>
                 </div>
@@ -325,18 +335,18 @@ const CompanySettings = () => {
             {/* Management Modal */}
             {managingUser && (
                 <div
-                    className="absolute inset-0 z-50 flex justify-center items-start sm:items-center p-4 bg-black/50 backdrop-blur-sm -mx-4 -mb-4 sm:-mx-6 sm:-mb-6 lg:-mx-8 lg:-mb-8 -mt-4 md:-mt-8"
-                    onMouseDown={() => setManagingUser(null)}
+                    className="fixed inset-0 z-50 flex justify-center items-center p-4 bg-black/50 backdrop-blur-sm"
+                    onClick={() => setManagingUser(null)}
                 >
                     <div
-                        onMouseDown={(e) => e.stopPropagation()}
-                        className="bg-white dark:bg-gray-800 shadow-xl flex flex-col overflow-hidden border border-gray-300 dark:border-gray-600 transition-all duration-300 ease-in-out w-full max-w-[1000px] h-[90%] rounded-lg p-6"
+                        onClick={(e) => e.stopPropagation()}
+                        className="bg-white dark:bg-gray-800 shadow-xl rounded-lg w-full max-w-lg p-6 space-y-6"
                     >
                         <div>
                             <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-indigo-100 dark:bg-indigo-900/30">
                                 <MdShield className="h-6 w-6 text-indigo-600 dark:text-indigo-400" />
                             </div>
-                            <div className="mt-3 text-center sm:mt-5">
+                            <div className="mt-3 text-center">
                                 <h3 className="text-xl leading-6 font-bold text-gray-900 dark:text-white">
                                     Manage Access: {managingUser.name}
                                 </h3>
@@ -345,7 +355,7 @@ const CompanySettings = () => {
                                 </p>
                             </div>
                         </div>
-                        <div className="mt-6 space-y-4 flex-1 overflow-y-auto pr-2">
+                        <div className="space-y-4 max-h-96 overflow-y-auto">
                             <div>
                                 <label className="text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-2 block">Change Role</label>
                                 <div className="flex flex-col gap-2">
@@ -356,8 +366,8 @@ const CompanySettings = () => {
                                             disabled={isUpdating || (!isOwner && role === 'OWNER')}
                                             title={(!isOwner && role === 'OWNER') ? 'Only Owners can assign other Owners' : ''}
                                             className={`flex items-start gap-4 p-2 text-left rounded-xl border transition-all ${managingUser.role === role
-                                                ? 'bg-indigo-50 dark:bg-indigo-900/20 border-indigo-500 ring-1 ring-indigo-500'
-                                                : 'bg-gray-50 dark:bg-gray-700/50 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-600 hover:border-indigo-500 hover:text-indigo-600 dark:hover:text-indigo-400'
+                                                    ? 'bg-indigo-50 dark:bg-indigo-900/20 border-indigo-500 ring-1 ring-indigo-500'
+                                                    : 'bg-gray-50 dark:bg-gray-700/50 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-600 hover:border-indigo-500 hover:text-indigo-600 dark:hover:text-indigo-400'
                                                 } disabled:opacity-30 disabled:cursor-not-allowed`}
                                         >
                                             <div className={`mt-1 flex-shrink-0 w-4 h-4 rounded-full border-2 flex items-center justify-center ${managingUser.role === role ? 'border-indigo-600' : 'border-gray-300 dark:border-gray-600'
@@ -377,21 +387,21 @@ const CompanySettings = () => {
                                 </div>
                             </div>
 
-                            <div className="pt-4 border-t border-gray-100 dark:border-gray-700">
+                            <div className="pt-4 border-t border-gray-100 dark:border-gray-700 space-y-2">
                                 <button
                                     onClick={() => handleRemoveUser(managingUser.id)}
                                     disabled={isUpdating || (managingUser.id === user.id) || (!isOwner && managingUser.role === 'OWNER')}
-                                    className="w-full flex items-center justify-center gap-2 rounded-lg border border-transparent shadow-sm px-4 py-2 bg-red-600 text-sm font-bold text-white hover:bg-red-700 transition-colors disabled:opacity-30"
+                                    className="w-full flex items-center justify-center gap-2 rounded-lg px-4 py-2 bg-red-600 text-sm font-bold text-white hover:bg-red-700 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                                 >
                                     <MdDelete /> Remove User
                                 </button>
+                                <button
+                                    onClick={() => setManagingUser(null)}
+                                    className="w-full inline-flex justify-center rounded-lg border border-gray-300 dark:border-gray-600 px-4 py-2 bg-white dark:bg-gray-700 text-sm font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 transition-all"
+                                >
+                                    Done
+                                </button>
                             </div>
-                            <button
-                                onClick={() => setManagingUser(null)}
-                                className="w-full inline-flex justify-center rounded-lg border border-gray-300 dark:border-gray-600 shadow-sm px-4 py-2 bg-white dark:bg-gray-700 text-sm font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 transition-all"
-                            >
-                                Done
-                            </button>
                         </div>
                     </div>
                 </div>

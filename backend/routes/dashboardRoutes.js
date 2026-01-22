@@ -4,7 +4,6 @@ import { CompanyUserRole } from '@prisma/client';
 // Import controllers
 import {
   getDashboard,
-  getProjectDashboard,
   getAdminDashboard
 } from '../controllers/dashboard.tenant.controller.js';
 
@@ -500,76 +499,7 @@ router.get(
   getDashboard
 );
 
-/**
- * @swagger
- * /api/dashboard/project/{projectId}:
- *   get:
- *     summary: Get project specific dashboard data
- *     tags:
- *       - Dashboard
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: header
- *         name: company
- *         required: true
- *         schema:
- *           type: string
- *         description: Company context required.
- *       - in: path
- *         name: projectId
- *         required: true
- *         schema:
- *           type: string
- *         description: The ID of the project.
- *         example: "clxko2x9s000008l3gwpw0h9d"
- *     responses:
- *       200:
- *         description: Successfully retrieved project dashboard data.
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ProjectDashboard'
- *       400:
- *         description: Invalid Project ID format.
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
- *       401:
- *         description: Not authorized, no token or token failed.
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
- *       403:
- *         description: Not authorized to view this project dashboard.
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
- *       404:
- *         description: Project not found.
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
- *       500:
- *         description: Server error.
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
- */
-router.get(
-  '/project/:projectId',
-  protect,
-  tenantContext,
-  checkCompanyRole(CompanyUserRole.VIEWER),
-  Validators.validateId('projectId'),
-  validate,
-  getProjectDashboard
-);
+
 
 /**
  * @swagger

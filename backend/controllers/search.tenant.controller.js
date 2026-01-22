@@ -1,85 +1,67 @@
-// controllers/search.tenant.controller.js
 import asyncHandler from 'express-async-handler';
-import ErrorResponse from '../utils/errorResponse.js';
 import * as searchService from '../services/search.service.js';
 
 /**
- * @desc    Global search across all content
+ * @desc    Global search across various content types
  * @route   GET /api/search
  * @access  Private
  */
-const globalSearch = asyncHandler(async (req, res) => {
-  // 1. Basic input validation
-  const { query, type, projectId, boardId, limit } = req.query;
-  if (!query || query.length < 2) {
-    throw new ErrorResponse('Search query must be at least 2 characters', 400);
-  }
+export const globalSearch = asyncHandler(async (req, res) => {
+    const { query, type = 'all', projectId, limit = 10 } = req.query;
+    const { activeCompanyId } = req;
 
-  // 2. Call the corresponding service function
-  const results = await searchService.performGlobalSearch({
-    query,
-    type,
-    projectId,
-    boardId,
-    limit,
-    user: req.user,
-    company: req.company,
-    userCompanyRole: req.userCompanyRole,
-  });
+    if (!query || query.length < 2) {
+        res.status(400);
+        throw new Error('Search query must be at least 2 characters long');
+    }
 
-  // 3. Handle the response
-  res.status(200).json(results);
+    const results = await searchService.globalSearch({
+        query,
+        type,
+        projectId,
+        limit: parseInt(limit, 10),
+        companyId: activeCompanyId,
+    });
+
+    res.json(results);
 });
 
 /**
- * @desc    JQL-like advanced search
+ * @desc    Advanced search for issues
  * @route   POST /api/search/advanced
  * @access  Private
  */
-const advancedSearch = asyncHandler(async (req, res) => {
-  // 1. Basic input validation is handled by the service
-  const searchCriteria = req.body;
-  const { page, limit } = searchCriteria;
+export const advancedSearch = asyncHandler(async (req, res) => {
+    const { activeCompanyId } = req;
+    const searchCriteria = req.body;
 
-  // 2. Call the corresponding service function
-  const { issues, pagination } = await searchService.performAdvancedSearch({
-    searchCriteria,
-    user: req.user,
-    company: req.company,
-    userCompanyRole: req.userCompanyRole,
-  });
+    const results = await searchService.advancedSearch({
+        ...searchCriteria,
+        companyId: activeCompanyId,
+    });
 
-  // 3. Handle the response
-  res.status(200).json({ issues, pagination });
+    res.json(results);
 });
 
 /**
- * @desc    Get search suggestions (autocomplete)
+ * @desc    Get search suggestions for autocomplete
  * @route   GET /api/search/suggestions
  * @access  Private
  */
-const getSearchSuggestions = asyncHandler(async (req, res) => {
-  // 1. Basic input validation
-  const { query, type } = req.query;
-  if (!query || query.length < 2) {
-    throw new ErrorResponse('Query must be at least 2 characters', 400);
-  }
+export const getSearchSuggestions = asyncHandler(async (req, res) => {
+    const { query, type = 'issues' } = req.query;
+    const { activeCompanyId } = req;
 
-  // 2. Call the corresponding service function
-  const suggestions = await searchService.getSearchSuggestions({
-    query,
-    type,
-    user: req.user,
-    company: req.company,
-    userCompanyRole: req.userCompanyRole,
-  });
+    if (!query || query.length < 2) {
+        res.status(400);
+        throw new Error('Search query must be at least 2 characters long');
+    }
 
-  // 3. Handle the response
-  res.status(200).json(suggestions);
+    const suggestions = await searchService.getSearchSuggestions({
+        query,
+        type,
+        companyId: activeCompanyId,
+    });
+
+    res.json(suggestions);
 });
-
-export {
-  globalSearch,
-  advancedSearch,
-  getSearchSuggestions,
-};

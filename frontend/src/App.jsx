@@ -34,29 +34,8 @@ import {
 } from './features/auth';
 
 import {
-  ProjectListPage,
-  ProjectDetailPage,
-} from './features/projects';
-
-import {
   DashboardPage
 } from './features/dashboard';
-
-import {
-  BoardViewPage,
-  BoardRedirector,
-  BoardJoinHandler,
-} from './features/board';
-
-import {
-  EpicPage,
-  EpicDetailPage
-} from './features/epics';
-
-import {
-  SprintPage,
-  SprintDetailPage
-} from './features/sprints';
 
 import {
   UserProfilePage,
@@ -124,13 +103,9 @@ const ProtectedRoute = ({ children, isAdminRoute = false, isCompanyAdminRoute = 
     );
   }
 
-
-
   if (!isAuthenticated) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
-
-
 
   // Handle account status redirection first
   switch (user?.status) {
@@ -341,24 +316,8 @@ const AppContent = () => {
           <Route index element={<Navigate to="/dashboard" replace />} />
           <Route path="dashboard" element={<DashboardPage />} />
 
-          <Route path="projects" element={<ProjectListPage />} />
-          <Route path="projects/:key" element={<ProjectDetailPage />} />
-
-          {/* --- Epics Routes --- */}
-          <Route path="projects/:projectId/epics" element={<EpicPage />} />
-          <Route path="epics/:epicId" element={<EpicDetailPage />} />
-
-          {/* --- Sprints Routes --- */}
-          <Route path="projects/:projectId/sprints" element={<SprintPage />} />
-          <Route path="projects/:projectId/sprints/:sprintId" element={<SprintDetailPage />} />
-
-          <Route path="boards/:boardId" element={<BoardViewPage />} />
-          <Route path="boards/:boardId/join" element={<BoardJoinHandler />} />
-
           <Route path="profile" element={<UserProfilePage />} />
           <Route path="profile/setup-2fa" element={<SetupTwoFactorPage />} />
-
-          <Route path="board/:key" element={<BoardRedirector />} />
 
           <Route
             path="workspace/settings"

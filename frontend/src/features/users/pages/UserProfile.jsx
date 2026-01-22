@@ -25,6 +25,8 @@ import {
 import tenantService from '../../tenants/services/tenantService';
 import CreateCompanyModal from '../../tenants/components/CreateCompanyModal';
 import { MdBusiness, MdAdd } from 'react-icons/md';
+import { generateInitialsAvatar } from '../../../utils/avatarUtils';
+
 
 
 import '../../../../output.css';
@@ -195,20 +197,15 @@ const UserProfile = () => {
         <div className="lg:col-span-1 space-y-6">
           {/* Avatar and Basic Info Card */}
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 text-center">
-            {currentUser.avatarUrl ? (
-              <img
-                alt={currentUser.displayName || 'User Avatar'}
-                src={currentUser.avatarUrl}
-                onError={(e) => { e.target.onerror = null; e.target.src = "https://placehold.co/128x128/e2e8f0/64748b?text=N/A"; }}
-                className="w-32 h-32 rounded-full mx-auto mb-4 object-cover border-2 border-gray-300 dark:border-gray-600"
-              />
-            ) : (
-              <div className="w-32 h-32 rounded-full mx-auto mb-4 bg-gray-300 dark:bg-gray-600 flex items-center justify-center border-2 border-gray-300 dark:border-gray-600">
-                <span className="text-4xl text-gray-500 dark:text-gray-400">
-                  {currentUser.displayName ? currentUser.displayName.charAt(0).toUpperCase() : '?'}
-                </span>
-              </div>
-            )}
+            <img
+              alt={currentUser.displayName || 'User Avatar'}
+              src={currentUser.avatarUrl || generateInitialsAvatar(currentUser.displayName || currentUser.email || 'User')}
+              onError={(e) => {
+                e.target.onerror = null;
+                e.target.src = generateInitialsAvatar(currentUser.displayName || currentUser.email || 'User');
+              }}
+              className="w-32 h-32 rounded-full mx-auto mb-4 object-cover border-2 border-gray-300 dark:border-gray-600"
+            />
             <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-1 break-words">{currentUser.displayName || 'Username Not Set'}</h2>
             <p className="text-sm text-gray-500 dark:text-gray-400 break-all">{currentUser.email || 'Email Not Set'}</p>
           </div>

@@ -234,7 +234,8 @@ export const loginUser = async (email, password, companyId) => {
 
   const userResponse = {
     id: user.id,
-    name: user.displayName || user.username,
+    displayName: user.displayName || user.username,
+    name: user.displayName || user.username, // Maintain name for legacy compatibility if needed
     email: user.email,
     avatarUrl: user.avatarUrl,
     role: user.role,
@@ -428,6 +429,7 @@ export const loginWithGoogle = async (idToken) => {
 
   const userResponse = {
     id: user.id,
+    displayName: user.displayName || user.username,
     name: user.displayName || user.username,
     email: user.email,
     avatarUrl: user.avatarUrl,
@@ -552,6 +554,7 @@ export const selectWorkspace = async (userId, companyId) => {
 
     return {
       id: baseUser.id,
+      displayName: baseUser.displayName,
       name: baseUser.displayName,
       email: baseUser.email,
       avatarUrl: baseUser.avatarUrl,
@@ -580,6 +583,7 @@ export const selectWorkspace = async (userId, companyId) => {
 
     return {
       id: baseUser.id,
+      displayName: baseUser.displayName,
       name: baseUser.displayName,
       email: baseUser.email,
       avatarUrl: baseUser.avatarUrl,
@@ -606,17 +610,9 @@ export const getUserProfile = async (userId) => {
 
   const { password, emailVerificationToken, emailVerificationTokenExpiresAt, ...userProfileData } = user;
 
-  // This is a direct Prisma query that isn't in UserMain to avoid cluttering the model.
-  const projects = await prisma.project.findMany({
-    where: { members: { some: { userId: userId } } },
-    select: { id: true }
-  });
-  const projectIds = projects.map(p => p.id);
-
   return {
     ...userProfileData,
-    avatar: user.avatarUrl,
-    projects: projectIds
+    avatar: user.avatarUrl
   };
 };
 
@@ -711,6 +707,7 @@ export const verifyTwoFactor = async (email, token) => {
 
   const userResponse = {
     id: user.id,
+    displayName: user.displayName || user.username,
     name: user.displayName || user.username,
     email: user.email,
     avatarUrl: user.avatarUrl,
@@ -790,7 +787,7 @@ export const disableTwoFactor = async (userId, password) => {
 // --- NEW FUNCTIONS EXTRACTED FROM MIDDLEWARE ---
 
 /**
- * @desc    Finds a user by ID including their companies and projects.
+ * @desc    Finds a user by ID including their companies.
  * @param   {string} userId - The user's ID.
  * @returns {Promise<object>} - The user object with relevant data.
  */
@@ -800,23 +797,6 @@ export const findUserWithCompaniesAndProjects = async (userId) => {
     include: {
       companies: {
         select: { company: true }
-      },
-      projectMemberships: {
-        select: {
-          project: {
-            select: {
-              id: true,
-              name: true,
-              projectLead: {
-                select: {
-                  id: true,
-                  displayName: true,
-                  username: true,
-                }
-              }
-            }
-          }
-        }
       }
     }
   });
@@ -825,58 +805,10 @@ export const findUserWithCompaniesAndProjects = async (userId) => {
     throw new ErrorResponse('User not found', 404);
   }
 
-  // Flatten projectMemberships to memberOfProjects for backward compatibility
-  const { projectMemberships, ...userData } = user;
-  return {
-    ...userData,
-    memberOfProjects: projectMemberships.map(pm => pm.project)
-  };
+  return user;
 };
 
-/**
- * @desc    Checks if a user is a member of a specific project.
- * @param   {string} userId - The user's ID.
- * @param   {string} projectId - The project's ID.
- * @returns {Promise<boolean>} - Throws an error if not a member.
- */
-export const checkProjectMembership = async (userId, projectId) => {
-  const project = await prisma.project.findFirst({
-    where: {
-      id: projectId,
-      members: { some: { userId: userId } }
-    }
-  });
 
-  if (!project) {
-    throw new ErrorResponse('Not authorized: You are not a member of this project', 403);
-  }
-  return true;
-};
-
-/**
- * @desc    Checks if a user is the project lead or an admin.
- * @param   {string} userId - The user's ID.
- * @param   {string} userRole - The user's global role.
- * @param   {string} projectId - The project's ID.
- * @returns {Promise<boolean>} - Throws an error if not authorized.
- */
-export const checkProjectLeadOrAdmin = async (userId, userRole, projectId) => {
-  if (userRole === 'ADMIN') {
-    return true;
-  }
-
-  const project = await prisma.project.findFirst({
-    where: {
-      id: projectId,
-      projectLeadId: userId
-    }
-  });
-
-  if (!project) {
-    throw new ErrorResponse('Not authorized: Only the project lead or an admin can perform this action', 403);
-  }
-  return true;
-};
 
 /**
  * @desc    Checks if a user is an ADMIN or MANAGER of a specific company.
@@ -927,30 +859,21 @@ export const checkCompanyOwner = async (userId, companyId) => {
 };
 
 /**
- * @desc    Finds a user by ID and retrieves their project memberships.
+ * @desc    Finds a user by ID.
  * @param   {string} userId
- * @returns {Promise<object>} The user object with a list of project IDs.
+ * @returns {Promise<object>} The user object.
  */
 export const findUserWithProjects = async (userId) => {
   try {
     const user = await prisma.userMain.findUnique({
-      where: { id: userId },
-      include: {
-        projectMemberships: {
-          select: { projectId: true }
-        }
-      }
+      where: { id: userId }
     });
 
     if (!user) {
       throw new ErrorResponse('User not found', 404);
     }
 
-    // Flatten the projectMemberships array to just a list of project IDs.
-    const projects = user.projectMemberships.map(membership => membership.projectId);
-    const userForSocket = { ...user, projects };
-
-    return userForSocket;
+    return user;
 
   } catch (error) {
     // Log the error for internal debugging
@@ -959,62 +882,4 @@ export const findUserWithProjects = async (userId) => {
     // Re-throw a generic error to the client, preventing internal details from leaking.
     throw new ErrorResponse('Authentication failed.', 500);
   }
-};
-
-/**
- * @desc    Checks if a user is a member of the project associated with a board.
- * @param   {string} userId - The user's ID.
- * @param   {string} boardId - The board's ID.
- * @returns {Promise<boolean>} - Throws an error if not a member.
- */
-export const checkBoardProjectMembership = async (userId, boardId) => {
-  const board = await prisma.momentumBoard.findUnique({
-    where: { id: boardId },
-    select: { projectId: true }
-  });
-
-  if (!board) {
-    throw new ErrorResponse('Board not found', 404);
-  }
-
-  return checkProjectMembership(userId, board.projectId);
-};
-
-/**
- * @desc    Checks if a user is the project lead or an admin of the project associated with a board.
- * @param   {string} userId - The user's ID.
- * @param   {string} userRole - The user's global role.
- * @param   {string} boardId - The board's ID.
- * @returns {Promise<boolean>} - Throws an error if not authorized.
- */
-export const checkBoardProjectLeadOrAdmin = async (userId, userRole, boardId) => {
-  const board = await prisma.momentumBoard.findUnique({
-    where: { id: boardId },
-    select: { projectId: true }
-  });
-
-  if (!board) {
-    throw new ErrorResponse('Board not found', 404);
-  }
-
-  return checkProjectLeadOrAdmin(userId, userRole, board.projectId);
-};
-
-/**
- * @desc    Checks if a user is a member of the project associated with a column.
- * @param   {string} userId - The user's ID.
- * @param   {string} columnId - The column's ID.
- * @returns {Promise<boolean>} - Throws an error if not a member.
- */
-export const checkColumnProjectMembership = async (userId, columnId) => {
-  const column = await prisma.momentumColumn.findUnique({
-    where: { id: columnId },
-    include: { board: { select: { projectId: true } } }
-  });
-
-  if (!column) {
-    throw new ErrorResponse('Column not found', 404);
-  }
-
-  return checkProjectMembership(userId, column.board.projectId);
 };

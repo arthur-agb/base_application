@@ -8,11 +8,6 @@ const DEFAULT_PLANS = [
         basePrice: 0,
         currency: 'GBP',
         billingFrequency: 'MONTHLY',
-        maxUsers: 3,
-        maxBoards: 1,
-        maxScheduledIssues: 3,
-        maxEpics: 1,
-        maxSprints: 1,
         startDate: new Date('2025-01-01'),
     },
     {
@@ -21,11 +16,6 @@ const DEFAULT_PLANS = [
         basePrice: 5,
         currency: 'GBP',
         billingFrequency: 'MONTHLY',
-        maxUsers: 5,
-        maxBoards: 5,
-        maxScheduledIssues: 20,
-        maxEpics: 10,
-        maxSprints: 10,
         startDate: new Date('2025-01-01'),
     },
     {
@@ -34,11 +24,6 @@ const DEFAULT_PLANS = [
         basePrice: 50,
         currency: 'GBP',
         billingFrequency: 'YEARLY',
-        maxUsers: 5,
-        maxBoards: 5,
-        maxScheduledIssues: 20,
-        maxEpics: 10,
-        maxSprints: 10,
         startDate: new Date('2025-01-01'),
     }
 ];
@@ -64,9 +49,8 @@ export async function initializePlans() {
             });
 
             if (!existingUserPlan) {
-                const { maxUsers, maxBoards, maxScheduledIssues, maxEpics, maxSprints, ...userPlanFields } = planData;
                 await prisma.userPlan.create({
-                    data: userPlanFields
+                    data: planData
                 });
             }
         }

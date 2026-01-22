@@ -1,7 +1,7 @@
 # docker-compose.prod.yml
 # Production environment configuration - CORRECTED FOR IMMUTABILITY
 
-name: momentum-prod
+name: base-prod
 
 services:
   caddy:

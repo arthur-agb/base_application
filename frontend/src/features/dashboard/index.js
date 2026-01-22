@@ -8,7 +8,7 @@ export { default as DashboardSkeleton } from './skeletons/DashboardSkeleton';
 export {
   // Thunks
   fetchDashboard,
-  fetchProjectDashboard,
+
   fetchAdminDashboard,
 
   // Actions

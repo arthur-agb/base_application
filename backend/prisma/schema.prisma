@@ -60,11 +60,7 @@ model CompanyPlan {
   endDate            DateTime?             @map("end_date")
   createdAt          DateTime              @default(now()) @map("created_at")
   updatedAt          DateTime              @updatedAt @map("updated_at")
-  maxBoards          Int?                  @map("max_boards")
-  maxEpics           Int?                  @map("max_epics")
-  maxScheduledIssues Int?                  @map("max_scheduled_issues")
-  maxSprints         Int?                  @map("max_sprints")
-  maxUsers           Int?                  @map("max_users")
+
   subscriptions      CompanySubscription[]
 
   @@map("company_plans")
@@ -427,11 +423,6 @@ model CompanyMain {
   settings      CompanySetting[]
   subscriptions CompanySubscription[]
   users         CompanyUser[]
-  contacts      CrmCompanyContact[]
-  feedback      CrmFeedback[]
-  messages      CrmMessage[]
-  tickets       CrmTicket[]
-  projects      Project[]
 
   @@map("company_main")
   @@schema("companies")
@@ -452,22 +443,9 @@ model UserMain {
   emailVerificationTokenExpiresAt DateTime?
   googleId                        String?                 @unique @map("google_id")
   companies                       CompanyUser[]
-  contactsCreated                 CrmCompanyContact[]
-  feedback                        CrmFeedback[]
-  ticketMessages                  CrmMessage[]
-  assignedTickets                 CrmTicket[]             @relation("AssignedTickets")
-  tickets                         CrmTicket[]             @relation("UserTickets")
+
   marketingAnalytics              MarketingAnalytic[]
-  momentumActivity                MomentumActivity[]
-  boardMemberships                MomentumBoardMember[]
-  comments                        MomentumComment[]       @relation("CommentAuthor")
-  ownedEpics                      MomentumEpic[]
-  momentumHistory                 MomentumHistory[]
-  assignedIssues                  MomentumIssue[]         @relation("Assignee")
-  reportedIssues                  MomentumIssue[]         @relation("Reporter")
-  ledProjects                     Project[]               @relation("ProjectLead")
-  projectMemberships              MomentumProjectMember[]
-  sprintMemberships               MomentumSprintMember[]
+
   activity                        UserActivity[]
   billings                        UserBilling[]
   credentials                     UserCredentials?
@@ -495,86 +473,7 @@ model Lead {
   @@schema("marketing")
 }
 
-model CrmTicket {
-  id               String            @id @default(cuid()) @map("ticket_id")
-  subject          String
-  description      String?
-  userId           String            @map("user_id")
-  companyId        String?           @map("company_id")
-  status           CrmTicketStatus
-  priority         CrmTicketPriority
-  assigneeNotes    String?           @map("assignee_notes")
-  assignedToUserId String?           @map("assigned_to_user_id")
-  createdAt        DateTime          @default(now()) @map("created_at")
-  updatedAt        DateTime          @updatedAt @map("updated_at")
-  messages         CrmMessage[]
-  assignedToUser   UserMain?         @relation("AssignedTickets", fields: [assignedToUserId], references: [id])
-  company          CompanyMain?      @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  user             UserMain          @relation("UserTickets", fields: [userId], references: [id], onDelete: Cascade)
 
-  @@index([userId])
-  @@index([companyId])
-  @@index([assignedToUserId])
-  @@map("crm_tickets")
-  @@schema("crm")
-}
-
-model CrmMessage {
-  id           String       @id @default(cuid()) @map("message_id")
-  ticketId     String       @map("ticket_id")
-  senderUserId String       @map("sender_user_id")
-  companyId    String?      @map("company_id")
-  subject      String?
-  body         String
-  timestamp    DateTime
-  createdAt    DateTime     @default(now()) @map("created_at")
-  updatedAt    DateTime     @updatedAt @map("updated_at")
-  company      CompanyMain? @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  sender       UserMain     @relation(fields: [senderUserId], references: [id], onDelete: Cascade)
-  ticket       CrmTicket    @relation(fields: [ticketId], references: [id], onDelete: Cascade)
-
-  @@index([ticketId])
-  @@index([senderUserId])
-  @@index([companyId])
-  @@map("crm_messages")
-  @@schema("crm")
-}
-
-model CrmFeedback {
-  id           String          @id @default(cuid()) @map("feedback_id")
-  userId       String          @map("user_id")
-  companyId    String?         @map("company_id")
-  feedbackType CrmFeedbackType @map("feedback_type")
-  body         String
-  isActive     Boolean         @default(true) @map("is_active")
-  createdAt    DateTime        @default(now()) @map("created_at")
-  updatedAt    DateTime        @updatedAt @map("updated_at")
-  company      CompanyMain?    @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  user         UserMain        @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-  @@index([companyId])
-  @@map("crm_feedback")
-  @@schema("crm")
-}
-
-model CrmCompanyContact {
-  id              String         @id @default(cuid()) @map("contact_id")
-  companyId       String?        @map("comapny_id")
-  contactType     CrmContactType @map("contact_type")
-  notes           String?
-  createdByUserId String         @map("created_by_user_id")
-  timestamp       DateTime
-  createdAt       DateTime       @default(now()) @map("created_at")
-  updatedAt       DateTime       @updatedAt @map("updated_at")
-  company         CompanyMain?   @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  createdByUser   UserMain       @relation(fields: [createdByUserId], references: [id], onDelete: Cascade)
-
-  @@index([companyId])
-  @@index([createdByUserId])
-  @@map("crm_companies_contact")
-  @@schema("crm")
-}
 
 model MarketingAnalytic {
   id              String          @id @default(cuid()) @map("analytics_id")
@@ -708,29 +607,7 @@ model UserPlanAddon {
   @@schema("users")
 }
 
-model Project {
-  id            String                  @id @default(cuid()) @map("project_id")
-  companyId     String?                 @map("company_id")
-  name          String
-  key           String
-  description   String?
-  createdAt     DateTime                @default(now()) @map("created_at")
-  updatedAt     DateTime                @updatedAt @map("updated_at")
-  projectLeadId String?                 @map("project_lead_id")
-  activities    MomentumActivity[]
-  boards        MomentumBoard[]
-  epics         MomentumEpic[]
-  issues        MomentumIssue[]
-  company       CompanyMain?            @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  projectLead   UserMain?               @relation("ProjectLead", fields: [projectLeadId], references: [id])
-  members       MomentumProjectMember[]
-  sprints       MomentumSprint[]
-  isArchived    Boolean                 @default(false) @map("is_archived")
 
-  @@unique([companyId, key])
-  @@map("mm_project_main")
-  @@schema("momentum")
-}
 
 model CompanySubscription {
   id        String             @id @default(cuid()) @map("subscription_id")
@@ -829,252 +706,7 @@ model CompanyPlanAddon {
   @@schema("companies")
 }
 
-model MomentumBoard {
-  id              String                @id @default(cuid()) @map("board_id")
-  projectId       String                @map("project_id")
-  name            String
-  type            BoardType
-  createdAt       DateTime              @default(now()) @map("created_at")
-  updatedAt       DateTime              @updatedAt @map("updated_at")
-  project         Project               @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  members         MomentumBoardMember[]
-  columns         MomentumColumn[]
-  issues          MomentumIssue[]
-  scheduledIssues ScheduledIssue[]
 
-  @@index([projectId])
-  @@map("mm_board")
-  @@schema("momentum")
-}
-
-model MomentumColumn {
-  id          String              @id @default(cuid()) @map("column_id")
-  boardId     String              @map("board_id")
-  name        String
-  limit       Int?
-  position    Int
-  createdAt   DateTime            @default(now()) @map("created_at")
-  updatedAt   DateTime            @updatedAt @map("updated_at")
-  category    IssueStatusCategory @default(TODO)
-  width       Int                 @default(300)
-  isMinimized Boolean             @default(false) @map("is_minimized")
-  board       MomentumBoard       @relation(fields: [boardId], references: [id], onDelete: Cascade)
-  issues      MomentumIssue[]
-
-  @@index([boardId])
-  @@map("mm_column")
-  @@schema("momentum")
-}
-
-model MomentumIssue {
-  id             String              @id @default(cuid()) @map("issue_id")
-  projectId      String              @map("project_id")
-  columnId       String              @map("column_id")
-  boardId        String              @map("board_id")
-  reporterUserId String              @map("reporter_user_id")
-  assigneeUserId String?             @map("assignee_user_id")
-  epicId         String?             @map("epic_id")
-  sprintId       String?             @map("sprint_id")
-  parentIssueId  String?             @map("parent_issue_id")
-  title          String
-  description    String?
-  type           IssueType
-  priority       IssuePriority
-  status         String
-  labels         String[]
-  storyPoints    Float?              @map("story_points")
-  dueDate        DateTime?           @map("due_date")
-  position       Float?
-  createdAt      DateTime            @default(now()) @map("created_at")
-  updatedAt      DateTime            @updatedAt @map("updated_at")
-  category       IssueStatusCategory @default(TODO)
-  comments       MomentumComment[]
-  assignee       UserMain?           @relation("Assignee", fields: [assigneeUserId], references: [id])
-  board          MomentumBoard       @relation(fields: [boardId], references: [id])
-  column         MomentumColumn      @relation(fields: [columnId], references: [id])
-  epic           MomentumEpic?       @relation(fields: [epicId], references: [id])
-  parentIssue    MomentumIssue?      @relation("SubTasks", fields: [parentIssueId], references: [id], onUpdate: NoAction)
-  subTasks       MomentumIssue[]     @relation("SubTasks")
-  project        Project             @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  reporter       UserMain            @relation("Reporter", fields: [reporterUserId], references: [id])
-  sprint         MomentumSprint?     @relation(fields: [sprintId], references: [id])
-
-  @@index([projectId, boardId, columnId])
-  @@index([reporterUserId])
-  @@index([assigneeUserId])
-  @@index([epicId])
-  @@index([sprintId])
-  @@index([parentIssueId])
-  @@map("mm_issue")
-  @@schema("momentum")
-}
-
-model MomentumEpic {
-  id          String          @id @default(cuid()) @map("epic_id")
-  projectId   String          @map("project_id")
-  title       String
-  description String?
-  status      EpicStatus
-  startDate   DateTime?       @map("start_date")
-  endDate     DateTime?       @map("end_date")
-  createdAt   DateTime        @default(now()) @map("created_at")
-  updatedAt   DateTime        @updatedAt @map("updated_at")
-  ownerUserId String?         @map("owner_user_id")
-  owner       UserMain?       @relation(fields: [ownerUserId], references: [id])
-  project     Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  issues      MomentumIssue[]
-
-  @@index([projectId])
-  @@map("mm_epic")
-  @@schema("momentum")
-}
-
-model MomentumSprint {
-  id             String                 @id @default(cuid()) @map("sprint_id")
-  projectId      String                 @map("project_id")
-  title          String
-  goal           String?
-  description    String?
-  status         SprintStatus
-  startDate      DateTime?              @map("start_date")
-  endDate        DateTime?              @map("end_date")
-  capacityPoints Float?                 @map("capacity_points")
-  createdAt      DateTime               @default(now()) @map("created_at")
-  updatedAt      DateTime               @updatedAt @map("updated_at")
-  issues         MomentumIssue[]
-  project        Project                @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  members        MomentumSprintMember[]
-
-  @@index([projectId])
-  @@map("mm_sprint")
-  @@schema("momentum")
-}
-
-model MomentumComment {
-  id              String            @id @default(cuid()) @map("comment_id")
-  issueId         String            @map("issue_id")
-  authorUserId    String            @map("author_user_id")
-  parentCommentId String?           @map("parent_comment_id")
-  body            String
-  edited          Boolean           @default(false)
-  editedAt        DateTime?         @map("edited_at")
-  reactions       Json?
-  createdAt       DateTime          @default(now()) @map("created_at")
-  updatedAt       DateTime          @updatedAt @map("updated_at")
-  author          UserMain          @relation("CommentAuthor", fields: [authorUserId], references: [id], onDelete: Cascade)
-  issue           MomentumIssue     @relation(fields: [issueId], references: [id], onDelete: Cascade)
-  parentComment   MomentumComment?  @relation("Replies", fields: [parentCommentId], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  replies         MomentumComment[] @relation("Replies")
-
-  @@index([issueId])
-  @@index([authorUserId])
-  @@index([parentCommentId])
-  @@map("mm_comment")
-  @@schema("momentum")
-}
-
-model MomentumActivity {
-  activityId String   @id @default(cuid()) @map("activity_id")
-  projectId  String   @map("project_id")
-  action     String
-  details    Json?
-  createdAt  DateTime @default(now()) @map("created_at")
-  userId     String   @map("user_id")
-  project    Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  user       UserMain @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([projectId])
-  @@index([userId])
-  @@map("mm_activity")
-  @@schema("momentum")
-}
-
-model MomentumHistory {
-  id                   String        @id @default(cuid()) @map("history_id")
-  action               HistoryAction
-  entityType           String        @map("entity_type")
-  entityId             String        @map("entity_id")
-  associatedEntityType String?       @map("associated_entity_type")
-  associatedEntityId   String?       @map("associated_entity_id")
-  fieldChanged         String?       @map("field_changed")
-  oldValue             String?       @map("old_value")
-  newValue             String?       @map("new_value")
-  changes              Json?
-  userId               String        @map("user_id")
-  companyId            String?       @map("company_id")
-  createdAt            DateTime      @default(now()) @map("created_at")
-  user                 UserMain      @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([entityType, entityId])
-  @@index([associatedEntityType, associatedEntityId])
-  @@index([userId])
-  @@map("mm_history")
-  @@schema("momentum")
-}
-
-model MomentumProjectMember {
-  projectId String            @map("project_id")
-  userId    String            @map("user_id")
-  role      ProjectMemberRole @default(MEMBER)
-  createdAt DateTime          @default(now()) @map("created_at")
-  isActive  Boolean           @default(true) @map("is_active")
-  endedAt   DateTime?         @map("ended_at")
-  project   Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  user      UserMain          @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@id([projectId, userId])
-  @@map("mm_project_members")
-  @@schema("momentum")
-}
-
-model MomentumBoardMember {
-  boardId   String        @map("board_id")
-  userId    String        @map("user_id")
-  createdAt DateTime      @default(now()) @map("created_at")
-  isActive  Boolean       @default(true) @map("is_active")
-  endedAt   DateTime?     @map("ended_at")
-  board     MomentumBoard @relation(fields: [boardId], references: [id], onDelete: Cascade)
-  user      UserMain      @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@id([boardId, userId])
-  @@map("mm_board_members")
-  @@schema("momentum")
-}
-
-model MomentumSprintMember {
-  sprintId  String         @map("sprint_id")
-  userId    String         @map("user_id")
-  createdAt DateTime       @default(now()) @map("created_at")
-  isActive  Boolean        @default(true) @map("is_active")
-  endedAt   DateTime?      @map("ended_at")
-  sprint    MomentumSprint @relation(fields: [sprintId], references: [id], onDelete: Cascade)
-  user      UserMain       @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@id([sprintId, userId])
-  @@map("mm_sprint_members")
-  @@schema("momentum")
-}
-
-model ScheduledIssue {
-  id             String            @id @default(cuid()) @map("scheduled_issue_id")
-  boardId        String            @map("board_id")
-  title          String
-  description    String?
-  frequency      ScheduleFrequency
-  cronExpression String?           @map("cron_expression")
-  customConfig   Json?             @map("custom_config")
-  nextRunAt      DateTime          @map("next_run_at")
-  lastRunAt      DateTime?         @map("last_run_at")
-  isActive       Boolean           @default(true) @map("is_active")
-  template       Json
-  createdAt      DateTime          @default(now()) @map("created_at")
-  updatedAt      DateTime          @updatedAt @map("updated_at")
-  board          MomentumBoard     @relation(fields: [boardId], references: [id], onDelete: Cascade)
-
-  @@index([boardId])
-  @@map("mm_scheduled_issue")
-  @@schema("momentum")
-}
 
 enum BillingType {
   USER
@@ -1101,40 +733,7 @@ enum TransactionType {
   @@schema("finance")
 }
 
-enum CrmTicketStatus {
-  OPEN
-  IN_PROGRESS
-  RESOLVED
-  CLOSED
 
-  @@schema("crm")
-}
-
-enum CrmTicketPriority {
-  HIGHEST
-  HIGH
-  MEDIUM
-  LOW
-  LOWEST
-
-  @@schema("crm")
-}
-
-enum CrmFeedbackType {
-  BUG_REPORT
-  FEATURE_REQUEST
-  GENERAL_FEEDBACK
-
-  @@schema("crm")
-}
-
-enum CrmContactType {
-  PHONE_CALL
-  EMAIL
-  MEETING
-
-  @@schema("crm")
-}
 
 enum LeaveType {
   ANNUAL
@@ -1277,85 +876,4 @@ enum CompanyUserRole {
   @@schema("companies")
 }
 
-enum BoardType {
-  KANBAN
-  SCRUM
 
-  @@schema("momentum")
-}
-
-enum IssueType {
-  STORY
-  TASK
-  BUG
-  EPIC
-
-  @@schema("momentum")
-}
-
-enum IssuePriority {
-  HIGHEST
-  HIGH
-  MEDIUM
-  LOW
-  LOWEST
-
-  @@schema("momentum")
-}
-
-enum IssueStatusCategory {
-  TODO
-  IN_PROGRESS
-  IN_REVIEW
-  DONE
-  BACKLOG
-
-  @@schema("momentum")
-}
-
-enum EpicStatus {
-  OPEN
-  IN_PROGRESS
-  COMPLETED
-  ARCHIVED
-
-  @@schema("momentum")
-}
-
-enum SprintStatus {
-  PLANNED
-  ACTIVE
-  COMPLETED
-  ARCHIVED
-
-  @@schema("momentum")
-}
-
-enum ProjectMemberRole {
-  LEAD
-  MEMBER
-  VIEWER
-
-  @@schema("momentum")
-}
-
-enum HistoryAction {
-  CREATE
-  UPDATE
-  DELETE
-  ADD
-  REMOVE
-  MOVE
-  COMMENT
-
-  @@schema("momentum")
-}
-
-enum ScheduleFrequency {
-  DAILY
-  WEEKLY
-  MONTHLY
-  CUSTOM
-
-  @@schema("momentum")
-}

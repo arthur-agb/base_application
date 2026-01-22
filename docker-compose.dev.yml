@@ -1,7 +1,7 @@
 # docker-compose.dev.yml
 # New development environment configuration for a second instance
 
-name: momentum-dev
+name: base-dev
 
 services:
   # ADDED: Caddy service for local development

@@ -16,19 +16,7 @@ export const fetchDashboard = createAsyncThunk(
   }
 );
 
-export const fetchProjectDashboard = createAsyncThunk(
-  'dashboard/fetchProjectDashboard',
-  async (projectId, { rejectWithValue }) => {
-    try {
-      const response = await api.get(`/dashboard/project/${projectId}`);
-      return response.data;
-    } catch (error) {
-      return rejectWithValue(
-        error.response?.data?.message || 'Failed to fetch project dashboard data'
-      );
-    }
-  }
-);
+
 
 export const fetchAdminDashboard = createAsyncThunk(
   'dashboard/fetchAdminDashboard',
@@ -59,7 +47,7 @@ const initialState = {
       reportedIssues: 0,
     },
   },
-  projectDashboard: null, // To store project-specific dashboard data
+
   adminDashboard: null,   // To store admin-specific dashboard data
   loading: false,
   error: null,
@@ -91,21 +79,9 @@ const dashboardSlice = createSlice({
         state.loading = false;
         state.error = action.payload;
       })
-      
-      // Fetch Project Dashboard
-      .addCase(fetchProjectDashboard.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
-      .addCase(fetchProjectDashboard.fulfilled, (state, action) => {
-        state.loading = false;
-        state.projectDashboard = action.payload;
-      })
-      .addCase(fetchProjectDashboard.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.payload;
-      })
-      
+
+
+
       // Fetch Admin Dashboard
       .addCase(fetchAdminDashboard.pending, (state) => {
         state.loading = true;

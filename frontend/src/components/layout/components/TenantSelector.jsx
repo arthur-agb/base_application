@@ -46,8 +46,8 @@ const TenantSelector = () => {
     try {
       await dispatch(selectTenant({ companyId })).unwrap();
       Logger.info(`Switched to tenant ID: ${companyId}`);
-      // Redirect to projects list to clear any stale project/board context
-      navigate('/projects');
+      // Redirect to dashboard to clear any stale context
+      navigate('/dashboard');
     } catch (err) {
       Logger.error('Failed to switch tenant:', err);
     } finally {

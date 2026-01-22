@@ -61,7 +61,6 @@ const Layout = () => {
 
     const primaryMenuItems = useMemo(() => [
         { text: 'Dashboard', icon: <MdDashboard size={SIDEBAR_ICON_SIZE} />, path: '/dashboard' },
-        { text: 'Projects', icon: <MdAssignment size={SIDEBAR_ICON_SIZE} />, path: '/projects', subPaths: ['/boards', '/board'] },
     ], []);
 
     const managementMenuItems = useMemo(() => [

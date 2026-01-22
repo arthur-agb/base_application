@@ -29,6 +29,35 @@ Creates a timestamped database backup for the specified environment.
 ./backup.sh prod    # Backup Production database
 ```
 
+### Log Script (`log.sh`)
+Simplified way to view streaming logs for specific services.
+
+**Usage:**
+```bash
+./log.sh [service_name]
+```
+
+**Examples:**
+```bash
+./log.sh backend_local    # View local backend logs
+./log.sh frontend_dev     # View dev frontend logs
+./log.sh backend          # View production backend logs
+```
+
+### Stop Script (`stop.sh`)
+Stops the application stack for an environment.
+
+**Usage:**
+```bash
+./stop.sh [local|dev|uat|prod]
+```
+
+**Examples:**
+```bash
+./stop.sh local           # Stop local environment
+./stop.sh prod            # Stop production environment
+```
+
 ### Deployment Script (`deploy.sh`)
 Performs a complete deployment including code updates, migrations, and service restarts.
 

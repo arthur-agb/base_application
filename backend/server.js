@@ -38,20 +38,12 @@ import tenantContext from './middleware/tenantContext.js';
 // Import routes
 import authRoutes from './routes/authRoutes.js';
 import tenantRoutes from './routes/tenantRoutes.js';
-import projectRoutes from './routes/projectRoutes.js';
-import boardRoutes from './routes/boardRoutes.js';
-import columnRoutes from './routes/columnRoutes.js';
-import issueRoutes from './routes/issueRoutes.js';
-import commentRoutes from './routes/commentRoutes.js';
 import userRoutes from './routes/userRoutes.js';
 import attachmentRoutes from './routes/attachmentRoutes.js';
 import dashboardRoutes from './routes/dashboardRoutes.js';
 import searchRoutes from './routes/searchRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
-import epicRoutes from './routes/epicRoutes.js';
-import sprintRoutes from './routes/sprintRoutes.js';
-import scheduledIssueRoutes from './routes/scheduledIssueRoutes.js';
-import { schedulerService } from './services/schedulerService.js';
+
 
 
 // Create directories
@@ -145,19 +137,11 @@ app.use(compression());
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/tenants', tenantRoutes);
-app.use('/api/projects', projectRoutes);
-app.use('/api/boards', boardRoutes);
-app.use('/api/columns', columnRoutes);
-app.use('/api/issues', issueRoutes);
-app.use('/api/epics', epicRoutes);
-app.use('/api/sprints', sprintRoutes);
-app.use('/api', commentRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/search', searchRoutes);
 app.use('/api', attachmentRoutes);
 app.use('/api/admin', adminRoutes);
-app.use('/api/scheduled-issues', scheduledIssueRoutes);
 
 // Serve uploaded files
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
@@ -298,8 +282,7 @@ const startServer = async () => {
       process.exit(1);
     }
 
-    // Initialize Scheduler
-    schedulerService.initScheduler();
+
 
   } catch (error) {
     Logger.error('Server startup error', error);

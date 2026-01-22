@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import tenantService from '../services/tenantService';
+import { generateInitialsAvatar } from '../../../utils/avatarUtils';
 
 export default function TenantManagerPage() {
   const [users, setUsers] = useState([]);
@@ -205,13 +206,15 @@ export default function TenantManagerPage() {
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="flex items-center">
                               <div className="flex-shrink-0 h-10 w-10">
-                                {u.avatarUrl ? (
-                                  <img className="h-10 w-10 rounded-full" src={u.avatarUrl} alt="" />
-                                ) : (
-                                  <div className="h-10 w-10 rounded-full bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center text-indigo-700 dark:text-indigo-300 font-bold">
-                                    {u.name.charAt(0).toUpperCase()}
-                                  </div>
-                                )}
+                                <img
+                                  className="h-10 w-10 rounded-full"
+                                  src={u.avatarUrl || generateInitialsAvatar(u.name || u.email || 'User', 40)}
+                                  onError={(e) => {
+                                    e.target.onerror = null;
+                                    e.target.src = generateInitialsAvatar(u.name || u.email || 'User', 40);
+                                  }}
+                                  alt=""
+                                />
                               </div>
                               <div className="ml-4">
                                 <div className="text-sm font-medium text-gray-900 dark:text-white">
