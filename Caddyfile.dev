@@ -1,0 +1,31 @@
+# Caddyfile.dev
+
+# Added to /etc/hosts on local machine (these remain the same as you're running sequentially):
+# 127.0.0.1 momentum.local
+# 127.0.0.1 agb.momentum.local
+# 127.0.0.1 mm.momentum.local
+
+*.momentum.local, momentum.local {
+    encode gzip
+    log {
+        output stdout
+        format console
+    }
+
+    tls internal
+
+    # Proxy API calls to the 'backend_dev' service on its internal port 5000
+    handle /api/* {
+        reverse_proxy backend_dev:5000 # Changed from 'backend' to 'backend_dev'
+    }
+    handle /socket.io/* {
+        reverse_proxy backend_dev:5000 # Changed from 'backend' to 'backend_dev'
+    }
+    handle /uploads/* {
+        reverse_proxy backend_dev:5000 # Changed from 'backend' to 'backend_dev'
+    }
+    handle {
+        reverse_proxy frontend_dev:3000 # Changed from 'frontend' to 'frontend_dev'
+    }
+
+}

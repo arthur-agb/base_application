@@ -1,0 +1,41 @@
+# Caddyfile (Production - Multi-Tenant)
+
+# 1. UPDATED: Listen on the root domain AND all subdomains (*).
+#    This is the key change that enables multi-tenancy.
+#    Caddy will automatically procure a wildcard SSL certificate for you.
+*.momentum-manager.com, momentum-manager.com {
+
+    # 2. UPGRADED: Added zstd for better compression, with gzip as a fallback.
+    encode zstd gzip
+
+    header Strict-Transport-Security "max-age=31536000;"
+
+    # 3. UPDATED: Changed logging to a file for production robustness.
+    #    Ensure the '/data/logs' directory is a writable volume in your deployment.
+    log {
+        output file /data/logs/caddy.log {
+            roll_size 10mb
+            roll_keep 5
+        }
+    }
+
+    # Your existing proxy logic is correct and remains unchanged.
+    # It will now work for requests from any subdomain.
+    # e.g., 'acme.momentum-manager.com/api/...' will be proxied.
+    handle /api/* {
+        reverse_proxy backend:5000
+    }
+    handle /socket.io/* {
+        reverse_proxy backend:5000
+    }
+    handle /uploads/* {
+        reverse_proxy backend:5000
+    }
+
+    # Your existing file server logic for the React SPA is also correct.
+    handle {
+        root * /srv/app/dist
+        try_files {path} /index.html
+        file_server
+    }
+}

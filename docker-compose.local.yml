@@ -1,0 +1,125 @@
+# docker-compose.local.yml
+# New development environment configuration for a second instance
+
+name: momentum-local
+
+services:
+  # ADDED: Caddy service for local development
+  # This is now the main entrypoint for all traffic to handle subdomains.
+  caddy_local:
+    image: caddy:latest
+    container_name: caddy_proxy_local
+    restart: unless-stopped
+    ports:
+      # Expose standard HTTP/HTTPS ports to your local machine
+      - "80:80"
+      - "443:443"
+      - "443:443/udp" # For HTTP/3
+    volumes:
+      # Mount the local Caddyfile for development
+      - ./Caddyfile.local:/etc/caddy/Caddyfile
+    networks:
+      - momentum-network-local
+    depends_on:
+      - frontend_local
+      - backend_local
+
+  # Frontend React Application for local
+  frontend_local:
+    # Changed service name
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    networks:
+      - momentum-network-local # New network
+    env_file:
+      - ./.env.local
+    command: sh -c "npx tailwindcss -i ./input.css -o ./output.css --content './src/**/*.{html,js,jsx,ts,tsx}' --watch & npm run dev:local -- --host 0.0.0.0"
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
+
+  # Backend Node.js API for local
+  backend_local:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.local
+    volumes:
+      - ./backend:/app
+      #- /app/node_modules
+      #- /app/prisma/node_modules
+      #- ./backend/uploads:/app/uploads
+      - node_modules_backend_local:/app/node_modules
+    depends_on:
+      - postgres_local # Depends on the new postgres service
+      - redis_local # Depends on the new redis service
+    env_file:
+      - ./.env.local # Point to a new environment file
+    networks:
+      - momentum-network-local # New network
+    command: sh -c "npx prisma generate && npx prisma migrate deploy && npm run dev" #sh -c "npx prisma migrate deploy && npm run dev"
+    deploy:
+      resources:
+        limits:
+          memory: 1.5G
+        reservations:
+          memory: 768M
+
+  # PostgreSQL Database for local
+  postgres_local:
+    # Changed service name
+    image: postgres:15
+    container_name: mm_postgres_local # Changed container name
+    restart: always
+    environment:
+      POSTGRES_USER: mm_admin_local # New user
+      POSTGRES_PASSWORD: mm_password_local # New password
+      POSTGRES_DB: mm_primary_local # New database name
+    ports:
+      - "5434:5432" # Changed host port to 5433
+    volumes:
+      - postgres_data_local:/var/lib/postgresql/data # !!! NEW VOLUME !!!
+    networks:
+      - momentum-network-local # New network
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 1G
+
+  # Redis Service for local
+  redis_local:
+    # Changed service name
+    image: redis:7-alpine
+    container_name: mm_redis_local # Changed container name
+    restart: always
+    ports:
+      - "6379:6379" # Changed host port to 6380
+    volumes:
+      - redis_data_local:/data # !!! NEW VOLUME !!!
+    networks:
+      - momentum-network-local # New network
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+        reservations:
+          memory: 128M
+
+# Define a new network for local services
+networks:
+  momentum-network-local:
+    driver: bridge
+
+# Define the new named volumes for local data persistence
+volumes:
+  postgres_data_local: # !!! NEW VOLUME DEFINITION !!!
+  redis_data_local: # !!! NEW VOLUME DEFINITION !!!
+  node_modules_backend_local: {}

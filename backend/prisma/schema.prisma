@@ -1,0 +1,1361 @@
+generator client {
+  provider        = "prisma-client-js"
+  output          = "../node_modules/.prisma/client"
+  previewFeatures = ["multiSchema"]
+  binaryTargets   = ["native", "linux-musl-openssl-3.0.x", "linux-arm64-openssl-3.0.x"]
+}
+
+datasource db {
+  provider          = "postgresql"
+  url               = env("DATABASE_URL")
+  shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
+  schemas           = ["companies", "crm", "finance", "marketing", "momentum", "people", "users"]
+}
+
+model UserPlan {
+  id               String             @id @default(cuid()) @map("plan_id")
+  name             String
+  description      String?
+  basePrice        Float              @map("base_price")
+  currency         String
+  billingFrequency BillingFrequency   @map("billing_frequency")
+  isActive         Boolean            @default(true) @map("is_active")
+  startDate        DateTime           @map("start_date")
+  endDate          DateTime?          @map("end_date")
+  createdAt        DateTime           @default(now()) @map("created_at")
+  updatedAt        DateTime           @updatedAt @map("updated_at")
+  subscriptions    UserSubscription[]
+
+  @@map("user_plans")
+  @@schema("users")
+}
+
+model UserAddon {
+  id               String           @id @default(cuid()) @map("addon_id")
+  name             String
+  description      String?
+  basePrice        Float            @map("base_price")
+  currency         String
+  billingFrequency BillingFrequency @map("billing_frequency")
+  isActive         Boolean          @default(true) @map("is_active")
+  startDate        DateTime         @map("start_date")
+  endDate          DateTime?        @map("end_date")
+  createdAt        DateTime         @default(now()) @map("created_at")
+  updatedAt        DateTime         @updatedAt @map("updated_at")
+  planAddons       UserPlanAddon[]
+
+  @@map("user_addons")
+  @@schema("users")
+}
+
+model CompanyPlan {
+  id                 String                @id @default(cuid()) @map("plan_id")
+  name               String                @unique
+  description        String?
+  basePrice          Float                 @map("base_price")
+  currency           String
+  billingFrequency   BillingFrequency      @map("billing_frequency")
+  isActive           Boolean               @default(true) @map("is_active")
+  startDate          DateTime              @map("start_date")
+  endDate            DateTime?             @map("end_date")
+  createdAt          DateTime              @default(now()) @map("created_at")
+  updatedAt          DateTime              @updatedAt @map("updated_at")
+  maxBoards          Int?                  @map("max_boards")
+  maxEpics           Int?                  @map("max_epics")
+  maxScheduledIssues Int?                  @map("max_scheduled_issues")
+  maxSprints         Int?                  @map("max_sprints")
+  maxUsers           Int?                  @map("max_users")
+  subscriptions      CompanySubscription[]
+
+  @@map("company_plans")
+  @@schema("companies")
+}
+
+model CompanyAddon {
+  id               String             @id @default(cuid()) @map("addon_id")
+  name             String
+  description      String?
+  basePrice        Float              @map("base_price")
+  currency         String
+  billingFrequency BillingFrequency   @map("billing_frequency")
+  isActive         Boolean            @default(true) @map("is_active")
+  startDate        DateTime           @map("start_date")
+  endDate          DateTime?          @map("end_date")
+  createdAt        DateTime           @default(now()) @map("created_at")
+  updatedAt        DateTime           @updatedAt @map("updated_at")
+  planAddons       CompanyPlanAddon[]
+
+  @@map("company_addons")
+  @@schema("companies")
+}
+
+model FinanceSupplier {
+  id          String        @id @default(cuid()) @map("supplier_id")
+  name        String
+  contactName String?       @map("contact_name")
+  email       String?       @unique
+  phone       String?
+  bankDetails Json?         @map("bank_details")
+  isActive    Boolean       @default(true) @map("is_active")
+  startDate   DateTime      @map("start_date")
+  endDate     DateTime?     @map("end_date")
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+  costs       FinanceCost[]
+
+  @@map("finance_suppliers")
+  @@schema("finance")
+}
+
+model Employee {
+  id              String            @id @default(cuid()) @map("employee_id")
+  jobTitle        String            @map("job_title")
+  department      String
+  costCentre      String            @unique @map("cost_centre")
+  managerId       String?           @map("manager_id")
+  isActive        Boolean           @default(true) @map("is_active")
+  startDate       DateTime          @map("start_date")
+  endDate         DateTime?         @map("end_date")
+  createdAt       DateTime          @default(now()) @map("created_at")
+  updatedAt       DateTime          @updatedAt @map("updated_at")
+  financeCosts    FinanceCost[]     @relation("CostCentreToEmployee")
+  paymentInfo     EmployeePayment?
+  manager         Employee?         @relation("ManagerSubordinates", fields: [managerId], references: [id], onUpdate: NoAction)
+  subordinates    Employee[]        @relation("ManagerSubordinates")
+  personalDetails EmployeePersonal?
+  leave           Leave[]
+  salaries        Salary[]
+
+  @@index([managerId])
+  @@map("employees")
+  @@schema("people")
+}
+
+model Campaign {
+  id             String              @id @default(cuid()) @map("campaign_id")
+  name           String
+  type           CampaignType
+  budget         Float?
+  status         CampaignStatus
+  isActive       Boolean             @default(true) @map("is_active")
+  startDate      DateTime            @map("start_date")
+  endDate        DateTime?           @map("end_date")
+  createdAt      DateTime            @default(now()) @map("created_at")
+  updatedAt      DateTime            @updatedAt @map("updated_at")
+  analytics      MarketingAnalytic[]
+  emailCampaigns EmailCampaign[]
+  paidCampaigns  PaidCampaign[]
+  socialPosts    SocialPost[]
+
+  @@map("campaigns")
+  @@schema("marketing")
+}
+
+model FinanceInvoice {
+  id              String               @id @default(cuid()) @map("invoice_id")
+  billingType     BillingType          @map("billing_type")
+  billingId       String               @map("billing_id")
+  invoiceNumber   String               @unique @map("invoice_number")
+  amount          Float
+  vatAmount       Float                @map("vat_amount")
+  currency        String
+  issueDate       DateTime             @map("issue_date")
+  dueDate         DateTime             @map("due_date")
+  status          InvoiceStatus
+  isActive        Boolean              @default(true) @map("is_active")
+  endedAt         DateTime?            @map("ended_at")
+  createdAt       DateTime             @default(now()) @map("created_at")
+  updatedAt       DateTime             @updatedAt @map("updated_at")
+  companyBillings CompanyBilling[]
+  transactions    FinanceTransaction[]
+  userBillings    UserBilling[]
+
+  @@map("finance_invoices")
+  @@schema("finance")
+}
+
+model FinanceCost {
+  id             String           @id @default(cuid()) @map("cost_id")
+  costCentre     String           @map("cost_centre")
+  description    String?
+  amount         Float
+  currency       String
+  category       String
+  timestamp      DateTime
+  supplierId     String?          @map("supplier_id")
+  createdAt      DateTime         @default(now()) @map("created_at")
+  updatedAt      DateTime         @updatedAt @map("updated_at")
+  costCentreInfo Employee         @relation("CostCentreToEmployee", fields: [costCentre], references: [costCentre], onDelete: NoAction, onUpdate: NoAction)
+  supplier       FinanceSupplier? @relation(fields: [supplierId], references: [id])
+
+  @@index([supplierId])
+  @@index([costCentre])
+  @@map("finance_costs")
+  @@schema("finance")
+}
+
+model FinanceTransaction {
+  id              String          @id @default(cuid()) @map("transaction_id")
+  invoiceId       String          @map("invoice_id")
+  transactionType TransactionType @map("transaction_type")
+  amount          Float
+  currency        String
+  timestamp       DateTime
+  createdAt       DateTime        @default(now()) @map("created_at")
+  updatedAt       DateTime        @updatedAt @map("updated_at")
+  invoice         FinanceInvoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId])
+  @@map("finance_transactions")
+  @@schema("finance")
+}
+
+model Salary {
+  id         String    @id @default(cuid()) @map("salary_id")
+  employeeId String    @map("employee_id")
+  amount     Float
+  currency   String
+  isActive   Boolean   @default(true) @map("is_active")
+  startDate  DateTime  @map("start_date")
+  endDate    DateTime? @map("end_date")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+  employee   Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([employeeId])
+  @@map("salaries")
+  @@schema("people")
+}
+
+model EmployeePersonal {
+  id                     String    @id @default(cuid()) @map("personal_id")
+  employeeId             String    @unique @map("employee_id")
+  firstName              String    @map("first_name")
+  lastName               String    @map("last_name")
+  preferredName          String?   @map("preferred_name")
+  dateOfBirth            DateTime  @map("date_of_birth")
+  personalPhone          String?   @map("personal_phone")
+  personalEmail          String?   @unique @map("personal_email")
+  workPhone              String?   @map("work_phone")
+  workEmail              String    @unique @map("work_email")
+  addressLine1           String    @map("addres_line1")
+  addressLine2           String?   @map("address_line2")
+  city                   String
+  postcode               String
+  country                String
+  niNumber               String?   @unique @map("ni_number")
+  emergencyContactName   String?   @map("emergency_contact_name")
+  emergencyContactNumber String?   @map("emergency_contact_number")
+  startDate              DateTime  @map("start_date")
+  endDate                DateTime? @map("end_date")
+  createdAt              DateTime  @default(now()) @map("created_at")
+  updatedAt              DateTime  @updatedAt @map("updated_at")
+  employee               Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@map("employees_personal")
+  @@schema("people")
+}
+
+model EmployeePayment {
+  id            String    @id @default(cuid()) @map("payment_id")
+  employeeId    String    @unique @map("employee_id")
+  bankName      String    @map("bank_name")
+  accountName   String    @map("account_name")
+  sortCode      String    @map("sort_code")
+  accountNumber String    @map("account_number")
+  isActive      Boolean   @default(true) @map("is_active")
+  startDate     DateTime  @map("start_date")
+  endDate       DateTime? @map("end_date")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+  employee      Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@map("employee_payment")
+  @@schema("people")
+}
+
+model Leave {
+  id         String      @id @default(cuid()) @map("leave_id")
+  employeeId String      @map("employee_id")
+  leaveType  LeaveType   @map("leave_type")
+  status     LeaveStatus
+  isActive   Boolean     @default(true) @map("is_active")
+  startDate  DateTime    @map("start_date")
+  endDate    DateTime    @map("end_date")
+  createdAt  DateTime    @default(now()) @map("created_at")
+  updatedAt  DateTime    @updatedAt @map("updated_at")
+  employee   Employee    @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([employeeId])
+  @@map("leave")
+  @@schema("people")
+}
+
+model EmailCampaign {
+  id         String   @id @default(cuid()) @map("email_camp_id")
+  campaignId String   @map("campaign_id")
+  subject    String
+  body       String
+  sentAt     DateTime @map("sent_at")
+  recipients Json
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@index([campaignId])
+  @@map("email_campaigns")
+  @@schema("marketing")
+}
+
+model SocialPost {
+  id          String         @id @default(cuid()) @map("social_post_id")
+  campaignId  String         @map("campaign_id")
+  platform    SocialPlatform
+  content     String
+  link        String?
+  publishedAt DateTime       @map("published_at")
+  likes       Int
+  shares      Int
+  comments    Int
+  createdAt   DateTime       @default(now()) @map("created_at")
+  updatedAt   DateTime       @updatedAt @map("updated_at")
+  campaign    Campaign       @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@index([campaignId])
+  @@map("social_posts")
+  @@schema("marketing")
+}
+
+model PaidCampaign {
+  id          String     @id @default(cuid()) @map("paid_camp_id")
+  campaignId  String     @map("campaign_id")
+  platform    AdPlatform
+  budget      Float
+  dailyBudget Float?     @map("daily_budget")
+  details     Json?
+  isActive    Boolean    @default(true) @map("is_active")
+  startDate   DateTime   @map("start_date")
+  endDate     DateTime?  @map("end_date")
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @updatedAt @map("updated_at")
+  adSets      AdSet[]
+  campaign    Campaign   @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@index([campaignId])
+  @@map("paid_campaigns")
+  @@schema("marketing")
+}
+
+model AdSet {
+  id             String        @id @default(cuid()) @map("ad_set_id")
+  paidCampaignId String        @map("paid_camp_id")
+  name           String
+  targetAudience Json          @map("target_audience")
+  bidStrategy    AdBidStrategy @map("bid_strategy")
+  status         AdStatus
+  createdAt      DateTime      @default(now()) @map("created_at")
+  updatedAt      DateTime      @updatedAt @map("updated_at")
+  adContents     AdContent[]
+  paidCampaign   PaidCampaign  @relation(fields: [paidCampaignId], references: [id], onDelete: Cascade)
+  keywords       Keyword[]
+
+  @@index([paidCampaignId])
+  @@map("ad_sets")
+  @@schema("marketing")
+}
+
+model AdContent {
+  id             String              @id @default(cuid()) @map("ad_content_id")
+  adSetId        String              @map("ad_set_id")
+  creativeType   AdCreativeType      @map("creative_type")
+  headline       String
+  bodyText       String              @map("body_text")
+  imageUrl       String?             @map("image_url")
+  destinationUrl String              @map("destination_url")
+  status         AdStatus
+  createdAt      DateTime            @default(now()) @map("created_at")
+  updatedAt      DateTime            @updatedAt @map("updated_at")
+  adSet          AdSet               @relation(fields: [adSetId], references: [id], onDelete: Cascade)
+  performance    PerformanceMetric[]
+
+  @@index([adSetId])
+  @@map("ad_content")
+  @@schema("marketing")
+}
+
+model PerformanceMetric {
+  id               String    @id @default(cuid()) @map("performance_id")
+  adContentId      String    @map("ad_content_id")
+  date             DateTime  @db.Date
+  impressions      Int
+  clicks           Int
+  cost             Float
+  conversions      Int
+  revenueGenerated Float     @map("revenue_generated")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+  adContent        AdContent @relation(fields: [adContentId], references: [id], onDelete: Cascade)
+
+  @@index([adContentId])
+  @@map("performance_metrics")
+  @@schema("marketing")
+}
+
+model Keyword {
+  id          String           @id @default(cuid()) @map("keyword_id")
+  adSetId     String           @map("ad_set_id")
+  keywordText String           @map("keyword_text")
+  matchType   KeywordMatchType @map("match_type")
+  bidAmount   Float?           @map("bid_amount")
+  status      AdStatus
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+  adSet       AdSet            @relation(fields: [adSetId], references: [id], onDelete: Cascade)
+
+  @@index([adSetId])
+  @@map("keywords")
+  @@schema("marketing")
+}
+
+model CompanyMain {
+  id            String                @id @default(cuid()) @map("company_id")
+  name          String
+  slug          String                @unique
+  createdAt     DateTime              @default(now()) @map("created_at")
+  updatedAt     DateTime              @updatedAt @map("updated_at")
+  billings      CompanyBilling[]
+  settings      CompanySetting[]
+  subscriptions CompanySubscription[]
+  users         CompanyUser[]
+  contacts      CrmCompanyContact[]
+  feedback      CrmFeedback[]
+  messages      CrmMessage[]
+  tickets       CrmTicket[]
+  projects      Project[]
+
+  @@map("company_main")
+  @@schema("companies")
+}
+
+model UserMain {
+  id                              String                  @id @default(cuid()) @map("user_id")
+  email                           String                  @unique
+  username                        String                  @unique
+  displayName                     String?                 @map("display_name")
+  avatarUrl                       String?                 @map("avatar_url")
+  role                            UserRole                @default(USER)
+  status                          UserStatus              @default(PENDING_VERIFICATION)
+  isEmailVerified                 Boolean                 @default(false) @map("is_email_verified")
+  createdAt                       DateTime                @default(now()) @map("created_at")
+  updatedAt                       DateTime                @updatedAt @map("updated_at")
+  emailVerificationToken          String?                 @unique
+  emailVerificationTokenExpiresAt DateTime?
+  googleId                        String?                 @unique @map("google_id")
+  companies                       CompanyUser[]
+  contactsCreated                 CrmCompanyContact[]
+  feedback                        CrmFeedback[]
+  ticketMessages                  CrmMessage[]
+  assignedTickets                 CrmTicket[]             @relation("AssignedTickets")
+  tickets                         CrmTicket[]             @relation("UserTickets")
+  marketingAnalytics              MarketingAnalytic[]
+  momentumActivity                MomentumActivity[]
+  boardMemberships                MomentumBoardMember[]
+  comments                        MomentumComment[]       @relation("CommentAuthor")
+  ownedEpics                      MomentumEpic[]
+  momentumHistory                 MomentumHistory[]
+  assignedIssues                  MomentumIssue[]         @relation("Assignee")
+  reportedIssues                  MomentumIssue[]         @relation("Reporter")
+  ledProjects                     Project[]               @relation("ProjectLead")
+  projectMemberships              MomentumProjectMember[]
+  sprintMemberships               MomentumSprintMember[]
+  activity                        UserActivity[]
+  billings                        UserBilling[]
+  credentials                     UserCredentials?
+  sessions                        UserSession[]
+  settings                        UserSettings?
+  subscriptions                   UserSubscription[]
+
+  @@map("user_main")
+  @@schema("users")
+}
+
+model Lead {
+  id        String    @id @default(cuid()) @map("leads_id")
+  name      String
+  email     String
+  phone     String?
+  source    String
+  isActive  Boolean   @default(true) @map("is_active")
+  startDate DateTime  @map("start_date")
+  endDate   DateTime? @map("end_date")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  @@map("leads")
+  @@schema("marketing")
+}
+
+model CrmTicket {
+  id               String            @id @default(cuid()) @map("ticket_id")
+  subject          String
+  description      String?
+  userId           String            @map("user_id")
+  companyId        String?           @map("company_id")
+  status           CrmTicketStatus
+  priority         CrmTicketPriority
+  assigneeNotes    String?           @map("assignee_notes")
+  assignedToUserId String?           @map("assigned_to_user_id")
+  createdAt        DateTime          @default(now()) @map("created_at")
+  updatedAt        DateTime          @updatedAt @map("updated_at")
+  messages         CrmMessage[]
+  assignedToUser   UserMain?         @relation("AssignedTickets", fields: [assignedToUserId], references: [id])
+  company          CompanyMain?      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user             UserMain          @relation("UserTickets", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([companyId])
+  @@index([assignedToUserId])
+  @@map("crm_tickets")
+  @@schema("crm")
+}
+
+model CrmMessage {
+  id           String       @id @default(cuid()) @map("message_id")
+  ticketId     String       @map("ticket_id")
+  senderUserId String       @map("sender_user_id")
+  companyId    String?      @map("company_id")
+  subject      String?
+  body         String
+  timestamp    DateTime
+  createdAt    DateTime     @default(now()) @map("created_at")
+  updatedAt    DateTime     @updatedAt @map("updated_at")
+  company      CompanyMain? @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  sender       UserMain     @relation(fields: [senderUserId], references: [id], onDelete: Cascade)
+  ticket       CrmTicket    @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId])
+  @@index([senderUserId])
+  @@index([companyId])
+  @@map("crm_messages")
+  @@schema("crm")
+}
+
+model CrmFeedback {
+  id           String          @id @default(cuid()) @map("feedback_id")
+  userId       String          @map("user_id")
+  companyId    String?         @map("company_id")
+  feedbackType CrmFeedbackType @map("feedback_type")
+  body         String
+  isActive     Boolean         @default(true) @map("is_active")
+  createdAt    DateTime        @default(now()) @map("created_at")
+  updatedAt    DateTime        @updatedAt @map("updated_at")
+  company      CompanyMain?    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user         UserMain        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([companyId])
+  @@map("crm_feedback")
+  @@schema("crm")
+}
+
+model CrmCompanyContact {
+  id              String         @id @default(cuid()) @map("contact_id")
+  companyId       String?        @map("comapny_id")
+  contactType     CrmContactType @map("contact_type")
+  notes           String?
+  createdByUserId String         @map("created_by_user_id")
+  timestamp       DateTime
+  createdAt       DateTime       @default(now()) @map("created_at")
+  updatedAt       DateTime       @updatedAt @map("updated_at")
+  company         CompanyMain?   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdByUser   UserMain       @relation(fields: [createdByUserId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@index([createdByUserId])
+  @@map("crm_companies_contact")
+  @@schema("crm")
+}
+
+model MarketingAnalytic {
+  id              String          @id @default(cuid()) @map("analytics_id")
+  campaignId      String          @map("campaign_id")
+  userId          String?         @map("user_id")
+  interactionType InteractionType @map("interaction_type")
+  timestamp       DateTime
+  details         Json?
+  createdAt       DateTime        @default(now()) @map("created_at")
+  updatedAt       DateTime        @updatedAt @map("updated_at")
+  campaign        Campaign        @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  user            UserMain?       @relation(fields: [userId], references: [id])
+
+  @@index([campaignId])
+  @@index([userId])
+  @@map("analytics")
+  @@schema("marketing")
+}
+
+model UserSettings {
+  userId               String   @id @map("user_id")
+  theme                String   @default("SYSTEM")
+  sidebarSize          String   @default("MEDIUM") @map("sidebar_size")
+  notificationsEnabled Boolean  @default(true) @map("notifications_enabled")
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
+  isSidebarOpen        Boolean  @default(true) @map("is_sidebar_open")
+  lastActiveCompanyId  String?  @map("last_active_company_id")
+  user                 UserMain @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_settings")
+  @@schema("users")
+}
+
+model UserCredentials {
+  userId                 String    @id @map("user_id")
+  passwordHash           String    @map("password_hash")
+  twoFactorSecret        String?   @map("two_factor_secret")
+  passwordResetToken     String?   @unique @map("password_reset_token")
+  emailVerificationToken String?   @unique @map("email_verification_token")
+  lastLoginAt            DateTime? @map("last_login_at")
+  createdAt              DateTime  @default(now()) @map("created_at")
+  updatedAt              DateTime  @updatedAt @map("updated_at")
+  user                   UserMain  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_credentials")
+  @@schema("users")
+}
+
+model UserSession {
+  sessionId  String   @id @default(cuid()) @map("session_id")
+  userId     String   @map("user_id")
+  token      String   @unique
+  ipAddress  String   @map("ip_address")
+  deviceInfo String   @map("device_info")
+  createdAt  DateTime @default(now()) @map("created_at")
+  expiresAt  DateTime @map("expires_at")
+  user       UserMain @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("user_sessions")
+  @@schema("users")
+}
+
+model UserActivity {
+  activityId String   @id @default(cuid()) @map("activity_id")
+  userId     String   @map("user_id")
+  action     String
+  details    Json?
+  createdAt  DateTime @default(now()) @map("created_at")
+  user       UserMain @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("user_activity")
+  @@schema("users")
+}
+
+model UserSubscription {
+  id        String             @id @default(cuid()) @map("subscription_id")
+  userId    String             @map("user_id")
+  planId    String             @map("plan_id")
+  status    SubscriptionStatus
+  startDate DateTime           @map("start_date")
+  endDate   DateTime?          @map("end_date")
+  createdAt DateTime           @default(now()) @map("created_at")
+  updatedAt DateTime           @updatedAt @map("updated_at")
+  addons    UserPlanAddon[]
+  plan      UserPlan           @relation(fields: [planId], references: [id])
+  user      UserMain           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([planId])
+  @@map("user_subscription")
+  @@schema("users")
+}
+
+model UserBilling {
+  billingId   String         @id @default(cuid()) @map("billing_id")
+  userId      String         @map("user_id")
+  invoiceId   String         @map("invoice_id")
+  amountDue   Float          @map("amount_due")
+  amountPaid  Float          @map("amount_paid")
+  currency    String
+  dueDate     DateTime       @map("due_date")
+  paymentDate DateTime?      @map("payment_date")
+  status      InvoiceStatus
+  createdAt   DateTime       @default(now()) @map("created_at")
+  updatedAt   DateTime       @updatedAt @map("updated_at")
+  invoice     FinanceInvoice @relation(fields: [invoiceId], references: [id])
+  user        UserMain       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([invoiceId])
+  @@map("user_billing")
+  @@schema("users")
+}
+
+model UserPlanAddon {
+  subscriptionId String           @map("subscription_id")
+  addonId        String           @map("addon_id")
+  isActive       Boolean          @default(true) @map("is_active")
+  startDate      DateTime         @map("start_date")
+  endDate        DateTime?        @map("end_date")
+  createdAt      DateTime         @default(now()) @map("created_at")
+  expiresAt      DateTime?        @map("expires_at")
+  addon          UserAddon        @relation(fields: [addonId], references: [id], onDelete: Cascade)
+  subscription   UserSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  @@id([subscriptionId, addonId])
+  @@map("user_plan_addons")
+  @@schema("users")
+}
+
+model Project {
+  id            String                  @id @default(cuid()) @map("project_id")
+  companyId     String?                 @map("company_id")
+  name          String
+  key           String
+  description   String?
+  createdAt     DateTime                @default(now()) @map("created_at")
+  updatedAt     DateTime                @updatedAt @map("updated_at")
+  projectLeadId String?                 @map("project_lead_id")
+  activities    MomentumActivity[]
+  boards        MomentumBoard[]
+  epics         MomentumEpic[]
+  issues        MomentumIssue[]
+  company       CompanyMain?            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  projectLead   UserMain?               @relation("ProjectLead", fields: [projectLeadId], references: [id])
+  members       MomentumProjectMember[]
+  sprints       MomentumSprint[]
+  isArchived    Boolean                 @default(false) @map("is_archived")
+
+  @@unique([companyId, key])
+  @@map("mm_project_main")
+  @@schema("momentum")
+}
+
+model CompanySubscription {
+  id        String             @id @default(cuid()) @map("subscription_id")
+  companyId String             @map("company_id")
+  planId    String             @map("plan_id")
+  startDate DateTime           @map("start_date")
+  endDate   DateTime?          @map("end_date")
+  status    SubscriptionStatus
+  createdAt DateTime           @default(now()) @map("created_at")
+  updatedAt DateTime           @updatedAt @map("updated_at")
+  addons    CompanyPlanAddon[]
+  company   CompanyMain        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  plan      CompanyPlan        @relation(fields: [planId], references: [id])
+
+  @@index([companyId])
+  @@index([planId])
+  @@map("company_subscription")
+  @@schema("companies")
+}
+
+model CompanyBilling {
+  billingId   String         @id @default(cuid()) @map("billing_id")
+  companyId   String         @map("company_id")
+  invoiceId   String         @map("invoice_id")
+  amountDue   Float          @map("amount_due")
+  amountPaid  Float          @map("amount_paid")
+  currency    String
+  dueDate     DateTime       @map("due_date")
+  paymentDate DateTime?      @map("payment_date")
+  status      InvoiceStatus
+  createdAt   DateTime       @default(now()) @map("created_at")
+  updatedAt   DateTime       @updatedAt @map("updated_at")
+  company     CompanyMain    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  invoice     FinanceInvoice @relation(fields: [invoiceId], references: [id])
+
+  @@index([companyId])
+  @@index([invoiceId])
+  @@map("company_billing")
+  @@schema("companies")
+}
+
+model CompanySetting {
+  settingId    String      @id @default(cuid()) @map("setting_id")
+  companyId    String      @map("company_id")
+  settingName  String      @map("setting_name")
+  settingValue String      @map("setting_value")
+  isActive     Boolean     @default(true) @map("is_active")
+  createdAt    DateTime    @default(now()) @map("created_at")
+  updatedAt    DateTime    @updatedAt @map("updated_at")
+  company      CompanyMain @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@map("company_settings")
+  @@schema("companies")
+}
+
+model CompanyUser {
+  companyId String          @map("company_id")
+  userId    String          @map("user_id")
+  role      CompanyUserRole
+  isActive  Boolean         @default(true) @map("is_active")
+  endedAt   DateTime?       @map("ended_at")
+  createdAt DateTime        @default(now()) @map("created_at")
+  updatedAt DateTime        @updatedAt @map("updated_at")
+  company   CompanyMain     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user      UserMain        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([companyId, userId])
+  @@map("company_users")
+  @@schema("companies")
+}
+
+model RoleDescription {
+  role        CompanyUserRole @id @map("role")
+  description String
+  createdAt   DateTime        @default(now()) @map("created_at")
+  updatedAt   DateTime        @updatedAt @map("updated_at")
+
+  @@map("company_role_descriptions")
+  @@schema("companies")
+}
+
+model CompanyPlanAddon {
+  subscriptionId String              @map("subscription_id")
+  addonId        String              @map("addon_id")
+  isActive       Boolean             @default(true) @map("is_active")
+  startDate      DateTime            @map("start_date")
+  endDate        DateTime?           @map("end_date")
+  createdAt      DateTime            @default(now()) @map("created_at")
+  expiresAt      DateTime?           @map("expires_at")
+  addon          CompanyAddon        @relation(fields: [addonId], references: [id], onDelete: Cascade)
+  subscription   CompanySubscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  @@id([subscriptionId, addonId])
+  @@map("company_plan_addons")
+  @@schema("companies")
+}
+
+model MomentumBoard {
+  id              String                @id @default(cuid()) @map("board_id")
+  projectId       String                @map("project_id")
+  name            String
+  type            BoardType
+  createdAt       DateTime              @default(now()) @map("created_at")
+  updatedAt       DateTime              @updatedAt @map("updated_at")
+  project         Project               @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  members         MomentumBoardMember[]
+  columns         MomentumColumn[]
+  issues          MomentumIssue[]
+  scheduledIssues ScheduledIssue[]
+
+  @@index([projectId])
+  @@map("mm_board")
+  @@schema("momentum")
+}
+
+model MomentumColumn {
+  id          String              @id @default(cuid()) @map("column_id")
+  boardId     String              @map("board_id")
+  name        String
+  limit       Int?
+  position    Int
+  createdAt   DateTime            @default(now()) @map("created_at")
+  updatedAt   DateTime            @updatedAt @map("updated_at")
+  category    IssueStatusCategory @default(TODO)
+  width       Int                 @default(300)
+  isMinimized Boolean             @default(false) @map("is_minimized")
+  board       MomentumBoard       @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  issues      MomentumIssue[]
+
+  @@index([boardId])
+  @@map("mm_column")
+  @@schema("momentum")
+}
+
+model MomentumIssue {
+  id             String              @id @default(cuid()) @map("issue_id")
+  projectId      String              @map("project_id")
+  columnId       String              @map("column_id")
+  boardId        String              @map("board_id")
+  reporterUserId String              @map("reporter_user_id")
+  assigneeUserId String?             @map("assignee_user_id")
+  epicId         String?             @map("epic_id")
+  sprintId       String?             @map("sprint_id")
+  parentIssueId  String?             @map("parent_issue_id")
+  title          String
+  description    String?
+  type           IssueType
+  priority       IssuePriority
+  status         String
+  labels         String[]
+  storyPoints    Float?              @map("story_points")
+  dueDate        DateTime?           @map("due_date")
+  position       Float?
+  createdAt      DateTime            @default(now()) @map("created_at")
+  updatedAt      DateTime            @updatedAt @map("updated_at")
+  category       IssueStatusCategory @default(TODO)
+  comments       MomentumComment[]
+  assignee       UserMain?           @relation("Assignee", fields: [assigneeUserId], references: [id])
+  board          MomentumBoard       @relation(fields: [boardId], references: [id])
+  column         MomentumColumn      @relation(fields: [columnId], references: [id])
+  epic           MomentumEpic?       @relation(fields: [epicId], references: [id])
+  parentIssue    MomentumIssue?      @relation("SubTasks", fields: [parentIssueId], references: [id], onUpdate: NoAction)
+  subTasks       MomentumIssue[]     @relation("SubTasks")
+  project        Project             @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  reporter       UserMain            @relation("Reporter", fields: [reporterUserId], references: [id])
+  sprint         MomentumSprint?     @relation(fields: [sprintId], references: [id])
+
+  @@index([projectId, boardId, columnId])
+  @@index([reporterUserId])
+  @@index([assigneeUserId])
+  @@index([epicId])
+  @@index([sprintId])
+  @@index([parentIssueId])
+  @@map("mm_issue")
+  @@schema("momentum")
+}
+
+model MomentumEpic {
+  id          String          @id @default(cuid()) @map("epic_id")
+  projectId   String          @map("project_id")
+  title       String
+  description String?
+  status      EpicStatus
+  startDate   DateTime?       @map("start_date")
+  endDate     DateTime?       @map("end_date")
+  createdAt   DateTime        @default(now()) @map("created_at")
+  updatedAt   DateTime        @updatedAt @map("updated_at")
+  ownerUserId String?         @map("owner_user_id")
+  owner       UserMain?       @relation(fields: [ownerUserId], references: [id])
+  project     Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  issues      MomentumIssue[]
+
+  @@index([projectId])
+  @@map("mm_epic")
+  @@schema("momentum")
+}
+
+model MomentumSprint {
+  id             String                 @id @default(cuid()) @map("sprint_id")
+  projectId      String                 @map("project_id")
+  title          String
+  goal           String?
+  description    String?
+  status         SprintStatus
+  startDate      DateTime?              @map("start_date")
+  endDate        DateTime?              @map("end_date")
+  capacityPoints Float?                 @map("capacity_points")
+  createdAt      DateTime               @default(now()) @map("created_at")
+  updatedAt      DateTime               @updatedAt @map("updated_at")
+  issues         MomentumIssue[]
+  project        Project                @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  members        MomentumSprintMember[]
+
+  @@index([projectId])
+  @@map("mm_sprint")
+  @@schema("momentum")
+}
+
+model MomentumComment {
+  id              String            @id @default(cuid()) @map("comment_id")
+  issueId         String            @map("issue_id")
+  authorUserId    String            @map("author_user_id")
+  parentCommentId String?           @map("parent_comment_id")
+  body            String
+  edited          Boolean           @default(false)
+  editedAt        DateTime?         @map("edited_at")
+  reactions       Json?
+  createdAt       DateTime          @default(now()) @map("created_at")
+  updatedAt       DateTime          @updatedAt @map("updated_at")
+  author          UserMain          @relation("CommentAuthor", fields: [authorUserId], references: [id], onDelete: Cascade)
+  issue           MomentumIssue     @relation(fields: [issueId], references: [id], onDelete: Cascade)
+  parentComment   MomentumComment?  @relation("Replies", fields: [parentCommentId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  replies         MomentumComment[] @relation("Replies")
+
+  @@index([issueId])
+  @@index([authorUserId])
+  @@index([parentCommentId])
+  @@map("mm_comment")
+  @@schema("momentum")
+}
+
+model MomentumActivity {
+  activityId String   @id @default(cuid()) @map("activity_id")
+  projectId  String   @map("project_id")
+  action     String
+  details    Json?
+  createdAt  DateTime @default(now()) @map("created_at")
+  userId     String   @map("user_id")
+  project    Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user       UserMain @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@index([userId])
+  @@map("mm_activity")
+  @@schema("momentum")
+}
+
+model MomentumHistory {
+  id                   String        @id @default(cuid()) @map("history_id")
+  action               HistoryAction
+  entityType           String        @map("entity_type")
+  entityId             String        @map("entity_id")
+  associatedEntityType String?       @map("associated_entity_type")
+  associatedEntityId   String?       @map("associated_entity_id")
+  fieldChanged         String?       @map("field_changed")
+  oldValue             String?       @map("old_value")
+  newValue             String?       @map("new_value")
+  changes              Json?
+  userId               String        @map("user_id")
+  companyId            String?       @map("company_id")
+  createdAt            DateTime      @default(now()) @map("created_at")
+  user                 UserMain      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([entityType, entityId])
+  @@index([associatedEntityType, associatedEntityId])
+  @@index([userId])
+  @@map("mm_history")
+  @@schema("momentum")
+}
+
+model MomentumProjectMember {
+  projectId String            @map("project_id")
+  userId    String            @map("user_id")
+  role      ProjectMemberRole @default(MEMBER)
+  createdAt DateTime          @default(now()) @map("created_at")
+  isActive  Boolean           @default(true) @map("is_active")
+  endedAt   DateTime?         @map("ended_at")
+  project   Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user      UserMain          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([projectId, userId])
+  @@map("mm_project_members")
+  @@schema("momentum")
+}
+
+model MomentumBoardMember {
+  boardId   String        @map("board_id")
+  userId    String        @map("user_id")
+  createdAt DateTime      @default(now()) @map("created_at")
+  isActive  Boolean       @default(true) @map("is_active")
+  endedAt   DateTime?     @map("ended_at")
+  board     MomentumBoard @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  user      UserMain      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([boardId, userId])
+  @@map("mm_board_members")
+  @@schema("momentum")
+}
+
+model MomentumSprintMember {
+  sprintId  String         @map("sprint_id")
+  userId    String         @map("user_id")
+  createdAt DateTime       @default(now()) @map("created_at")
+  isActive  Boolean        @default(true) @map("is_active")
+  endedAt   DateTime?      @map("ended_at")
+  sprint    MomentumSprint @relation(fields: [sprintId], references: [id], onDelete: Cascade)
+  user      UserMain       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([sprintId, userId])
+  @@map("mm_sprint_members")
+  @@schema("momentum")
+}
+
+model ScheduledIssue {
+  id             String            @id @default(cuid()) @map("scheduled_issue_id")
+  boardId        String            @map("board_id")
+  title          String
+  description    String?
+  frequency      ScheduleFrequency
+  cronExpression String?           @map("cron_expression")
+  customConfig   Json?             @map("custom_config")
+  nextRunAt      DateTime          @map("next_run_at")
+  lastRunAt      DateTime?         @map("last_run_at")
+  isActive       Boolean           @default(true) @map("is_active")
+  template       Json
+  createdAt      DateTime          @default(now()) @map("created_at")
+  updatedAt      DateTime          @updatedAt @map("updated_at")
+  board          MomentumBoard     @relation(fields: [boardId], references: [id], onDelete: Cascade)
+
+  @@index([boardId])
+  @@map("mm_scheduled_issue")
+  @@schema("momentum")
+}
+
+enum BillingType {
+  USER
+  COMPANY
+
+  @@schema("finance")
+}
+
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  PAID
+  OVERDUE
+  VOID
+
+  @@schema("finance")
+}
+
+enum TransactionType {
+  PAYMENT
+  REFUND
+  CREDIT
+
+  @@schema("finance")
+}
+
+enum CrmTicketStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+
+  @@schema("crm")
+}
+
+enum CrmTicketPriority {
+  HIGHEST
+  HIGH
+  MEDIUM
+  LOW
+  LOWEST
+
+  @@schema("crm")
+}
+
+enum CrmFeedbackType {
+  BUG_REPORT
+  FEATURE_REQUEST
+  GENERAL_FEEDBACK
+
+  @@schema("crm")
+}
+
+enum CrmContactType {
+  PHONE_CALL
+  EMAIL
+  MEETING
+
+  @@schema("crm")
+}
+
+enum LeaveType {
+  ANNUAL
+  SICK
+  UNPAID
+  MATERNITY
+  PATERNITY
+
+  @@schema("people")
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+
+  @@schema("people")
+}
+
+enum CampaignType {
+  EMAIL
+  SOCIAL_MEDIA
+  PAID_ADVERTISING
+  CONTENT_MARKETING
+
+  @@schema("marketing")
+}
+
+enum CampaignStatus {
+  PLANNING
+  ACTIVE
+  COMPLETED
+  ARCHIVED
+
+  @@schema("marketing")
+}
+
+enum SocialPlatform {
+  FACEBOOK
+  TWITTER
+  INSTAGRAM
+  LINKEDIN
+
+  @@schema("marketing")
+}
+
+enum InteractionType {
+  CLICK
+  VIEW
+  CONVERSION
+  SHARE
+
+  @@schema("marketing")
+}
+
+enum AdPlatform {
+  GOOGLE_ADS
+  FACEBOOK_ADS
+  LINKEDIN_ADS
+
+  @@schema("marketing")
+}
+
+enum AdBidStrategy {
+  CPC
+  CPM
+  CPA
+
+  @@schema("marketing")
+}
+
+enum AdStatus {
+  ACTIVE
+  PAUSED
+  ARCHIVED
+  PENDING_REVIEW
+
+  @@schema("marketing")
+}
+
+enum AdCreativeType {
+  IMAGE
+  VIDEO
+  CAROUSEL
+  TEXT
+
+  @@schema("marketing")
+}
+
+enum KeywordMatchType {
+  BROAD
+  PHRASE
+  EXACT
+
+  @@schema("marketing")
+}
+
+enum UserRole {
+  USER
+  ADMIN
+  SUPPORT
+
+  @@schema("users")
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  DELETED
+  PENDING_VERIFICATION
+  PENDING_APPROVAL
+
+  @@schema("users")
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  CANCELLED
+  TRIALING
+  PAST_DUE
+
+  @@schema("users")
+}
+
+enum BillingFrequency {
+  MONTHLY
+  YEARLY
+
+  @@schema("users")
+}
+
+enum CompanyUserRole {
+  OWNER
+  ADMIN
+  MEMBER
+  BILLING
+  MANAGER
+  VIEWER
+
+  @@schema("companies")
+}
+
+enum BoardType {
+  KANBAN
+  SCRUM
+
+  @@schema("momentum")
+}
+
+enum IssueType {
+  STORY
+  TASK
+  BUG
+  EPIC
+
+  @@schema("momentum")
+}
+
+enum IssuePriority {
+  HIGHEST
+  HIGH
+  MEDIUM
+  LOW
+  LOWEST
+
+  @@schema("momentum")
+}
+
+enum IssueStatusCategory {
+  TODO
+  IN_PROGRESS
+  IN_REVIEW
+  DONE
+  BACKLOG
+
+  @@schema("momentum")
+}
+
+enum EpicStatus {
+  OPEN
+  IN_PROGRESS
+  COMPLETED
+  ARCHIVED
+
+  @@schema("momentum")
+}
+
+enum SprintStatus {
+  PLANNED
+  ACTIVE
+  COMPLETED
+  ARCHIVED
+
+  @@schema("momentum")
+}
+
+enum ProjectMemberRole {
+  LEAD
+  MEMBER
+  VIEWER
+
+  @@schema("momentum")
+}
+
+enum HistoryAction {
+  CREATE
+  UPDATE
+  DELETE
+  ADD
+  REMOVE
+  MOVE
+  COMMENT
+
+  @@schema("momentum")
+}
+
+enum ScheduleFrequency {
+  DAILY
+  WEEKLY
+  MONTHLY
+  CUSTOM
+
+  @@schema("momentum")
+}

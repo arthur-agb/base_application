@@ -1,0 +1,118 @@
+# docker-compose.prod.yml
+# Production environment configuration - CORRECTED FOR IMMUTABILITY
+
+name: momentum-prod
+
+services:
+  caddy:
+    image: caddy:latest
+    container_name: caddy_proxy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile.prod:/etc/caddy/Caddyfile
+      - frontend_dist:/srv/app/dist:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - momentum-network
+    depends_on:
+      - backend
+      - frontend
+    deploy:
+      resources:
+        limits:
+          memory: 64M
+        reservations:
+          memory: 32M
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+    volumes:
+      - frontend_dist:/app/dist
+    networks:
+      - momentum-network
+    deploy:
+      resources:
+        limits:
+          memory: 768M
+        reservations:
+          memory: 512M
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    volumes:
+      # - ./backend:/app      # REMOVED: In production, code should be baked into the image.
+      # - /app/node_modules   # REMOVED: node_modules are installed via RUN npm ci in the Dockerfile.
+      - ./backend/uploads:/app/uploads # CORRECT: Persistent storage for user uploads is kept.
+    depends_on:
+      - postgres
+      - redis
+    env_file:
+      - ./.env.prod
+    networks:
+      - momentum-network
+    command: >
+      sh -c "npx prisma migrate deploy && npx prisma generate && npm start"
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+
+  postgres:
+    image: postgres:15
+    container_name: mm_postgres_prod
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    # ports:
+    #   - "5432:5432" # Removed for security - internal access only
+    volumes:
+      - postgres_data_prod:/var/lib/postgresql/data
+    networks:
+      - momentum-network
+    deploy:
+      resources:
+        limits:
+          memory: 400M
+        reservations:
+          memory: 200M
+
+  redis:
+    image: redis:7-alpine
+    container_name: mm_redis_prod
+    restart: always
+    volumes:
+      - redis_data_prod:/data
+    networks:
+      - momentum-network
+    deploy:
+      resources:
+        limits:
+          memory: 96M
+        reservations:
+          memory: 48M
+
+networks:
+  momentum-network:
+    driver: bridge
+
+volumes:
+  postgres_data_prod:
+  redis_data_prod:
+  caddy_data:
+  caddy_config:
+  frontend_dist:

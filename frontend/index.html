@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/mm_icon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Momentum Manager x AGB - A project management tool" />
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff">
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#111827">
+    <title>MM by AGB</title>
+    <link rel="preconnect" href="http://localhost:5000" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+
+    <script>
+      (function() {
+        // Function to apply the theme class to <html>
+        function applyThemeClass(isDark) {
+          console.log(`[index.html] applyThemeClass called with isDark: ${isDark}`);
+          document.documentElement.classList.toggle('dark', isDark);
+        }
+
+        let themeSetting; // 'light', 'dark', or undefined if using system
+        let isDarkMode;
+
+        try {
+          const storedTheme = localStorage.getItem('theme');
+          console.log(`[index.html] localStorage theme value: ${storedTheme}`);
+
+          if (storedTheme === 'light' || storedTheme === 'dark') {
+            themeSetting = storedTheme;
+            isDarkMode = themeSetting === 'dark';
+            console.log(`[index.html] Initial theme determined from localStorage: ${themeSetting}`);
+          } else {
+            // No valid theme in localStorage, check system preference
+            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            // *** ADDED LOGGING HERE ***
+            console.log(`[index.html] Initial system check: prefers-color-scheme: dark? ${prefersDark}`);
+            isDarkMode = prefersDark;
+            themeSetting = isDarkMode ? 'dark' : 'light'; // Reflect system for logging
+            console.log(`[index.html] Initial theme determined from system: ${themeSetting}`);
+
+            // Clean up invalid localStorage entry if it existed
+            if (storedTheme !== null) {
+                console.log(`[index.html] Removing invalid theme value '${storedTheme}' from localStorage.`);
+                localStorage.removeItem('theme');
+            }
+          }
+        } catch (e) {
+          console.warn("[index.html] Error accessing localStorage or matchMedia, defaulting to light theme.");
+          isDarkMode = false; // Fallback
+          themeSetting = 'light';
+        }
+
+        // Apply the determined theme class immediately
+        applyThemeClass(isDarkMode);
+        console.log(`[index.html] Initial 'dark' class applied: ${isDarkMode}`);
+
+      })();
+    </script>
+
+    <style>
+      /* Styles remain the same */
+      #root { height: 100%; }
+      .initial-loader { display: flex; align-items: center; justify-content: center; height: 100vh; flex-direction: column; background-color: #F3F4F6; }
+      html.dark .initial-loader { background-color: #111827; }
+      .initial-loader svg { width: 50px; height: 50px; animation: spin 1s linear infinite; }
+      .initial-loader svg circle { stroke: #4F46E5; }
+      html.dark .initial-loader svg circle { stroke: #818CF8; }
+      .initial-loader p { margin-top: 1rem; font-size: 1rem; font-weight: 500; color: #374151; }
+      html.dark .initial-loader p { color: #D1D5DB; }
+      @keyframes spin { 100% { transform: rotate(360deg); } }
+    </style>
+  </head>
+  <body class="h-full font-sans bg-gray-100 dark:bg-gray-900">
+    <div id="root">
+       <div class="initial-loader">
+         <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="12" cy="12" r="9" fill="none" stroke-width="3" stroke-dasharray="42" stroke-linecap="round" />
+          </svg>
+         <p>Loading Wizard Shit...</p>
+       </div>
+    </div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>

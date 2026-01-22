@@ -1,0 +1,123 @@
+# docker-compose.dev.yml
+# New development environment configuration for a second instance
+
+name: momentum-dev
+
+services:
+  # ADDED: Caddy service for local development
+  # This is now the main entrypoint for all traffic to handle subdomains.
+  caddy_dev:
+    image: caddy:latest
+    container_name: caddy_proxy_dev
+    restart: unless-stopped
+    ports:
+      # Expose standard HTTP/HTTPS ports to your local machine
+      - "80:80"
+      - "443:443"
+      - "443:443/udp" # For HTTP/3
+    volumes:
+      # Mount the local Caddyfile for development
+      - ./Caddyfile.dev:/etc/caddy/Caddyfile
+    networks:
+      - momentum-network-dev
+    depends_on:
+      - frontend_dev
+      - backend_dev
+
+  # Frontend React Application for dev
+  frontend_dev:
+    # Changed service name
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    networks:
+      - momentum-network-dev # New network
+    command: sh -c "npx tailwindcss -i ./input.css -o ./output.css --content './src/**/*.{html,js,jsx,ts,tsx}' --watch & npm run dev -- --host 0.0.0.0"
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
+
+  # Backend Node.js API for dev
+  backend_dev:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    volumes:
+      - ./backend:/app
+      #- /app/node_modules
+      #- /app/prisma/node_modules
+      #- ./backend/uploads:/app/uploads
+      - node_modules_backend_dev:/app/node_modules
+    depends_on:
+      - postgres_dev # Depends on the new postgres service
+      - redis_dev # Depends on the new redis service
+    env_file:
+      - ./.env.dev # Point to a new environment file
+    networks:
+      - momentum-network-dev # New network
+    command: sh -c "npm install && npx prisma generate && npx prisma migrate deploy && npx prisma db execute --file prisma/dev_startup.sql --schema prisma/schema.prisma && npm run dev"
+    deploy:
+      resources:
+        limits:
+          memory: 1.5G
+        reservations:
+          memory: 768M
+
+  # PostgreSQL Database for dev
+  postgres_dev:
+    # Changed service name
+    image: postgres:15
+    container_name: mm_postgres_dev # Changed container name
+    restart: always
+    environment:
+      POSTGRES_USER: mm_admin_dev # New user
+      POSTGRES_PASSWORD: mm_password_dev # New password
+      POSTGRES_DB: mm_primary_dev # New database name
+    ports:
+      - "5434:5432" # Changed host port to 5433
+    volumes:
+      - postgres_data_dev:/var/lib/postgresql/data # !!! NEW VOLUME !!!
+    networks:
+      - momentum-network-dev # New network
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 1G
+
+  # Redis Service for dev
+  redis_dev:
+    # Changed service name
+    image: redis:7-alpine
+    container_name: mm_redis_dev # Changed container name
+    restart: always
+    ports:
+      - "6379:6379" # Changed host port to 6380
+    volumes:
+      - redis_data_dev:/data # !!! NEW VOLUME !!!
+    networks:
+      - momentum-network-dev # New network
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+        reservations:
+          memory: 128M
+
+# Define a new network for dev services
+networks:
+  momentum-network-dev:
+    driver: bridge
+
+# Define the new named volumes for dev data persistence
+volumes:
+  postgres_data_dev: # !!! NEW VOLUME DEFINITION !!!
+  redis_data_dev: # !!! NEW VOLUME DEFINITION !!!
+  node_modules_backend_dev: {}

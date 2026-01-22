@@ -1,0 +1,40 @@
+# backend/Dockerfile.dev
+# This Dockerfile is for local development.
+# It installs dependencies and generates a platform-specific Prisma client.
+
+# Use a Node.js version that matches your project requirements.
+# The -slim variant is a good balance of size and functionality.
+FROM node:22-slim
+
+# The 'openssl' package is needed for Prisma's query engine.
+RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
+
+# Set the working directory inside the container
+WORKDIR /app
+
+# Copy dependency definition files
+# This allows Docker to cache the npm install step if these files don't change
+COPY package*.json ./
+
+# Copy the prisma schema so we can generate the client
+# This is a critical step
+COPY prisma ./prisma/
+
+# Install dependencies inside the container
+# This creates a Linux-native node_modules directory
+RUN npm install
+
+# Generate the Prisma Client for the Linux environment
+RUN npx prisma generate
+
+# Copy the rest of your application's source code
+# This will be mostly overwritten by the docker-compose volume for development,
+# but it's good practice for a complete image.
+COPY . .
+
+# Expose the application port
+EXPOSE 5001 
+# Changed to match your backend port, adjust if needed
+
+# The command will be provided by docker-compose
+CMD ["npm", "run", "dev"]

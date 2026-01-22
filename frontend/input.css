@@ -1,0 +1,23 @@
+@import "tailwindcss";
+
+/* Add this line to enable class-based dark mode */
+@custom-variant dark (&:where(.dark, .dark *));
+
+@layer base {
+  *, *::before, *::after {
+    box-sizing: border-box;
+  }
+
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  html {
+    font-family: sans-serif;
+    /* color: #333; */ /* You might want theme-dependent text colors here or on body */
+  }
+}
+
+/* Add any other custom base styles, components, or utilities here */
