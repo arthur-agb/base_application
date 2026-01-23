@@ -1,5 +1,5 @@
 // src/App.jsx
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useMemo } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { ThemeProvider as MuiThemeProvider, createTheme } from '@mui/material/styles';
@@ -67,24 +67,35 @@ import {
   Logger,
 } from './utils';
 
+// New Feature Imports
+import CommercialForecast from './pages/CommercialForecast';
+import DatabricksConnect from './pages/admin/DatabricksConnect';
+
 // ----------------------------------------
-// -- MUI Theme Config
+// -- MUI Theme Generator
 // ----------------------------------------
 
-const muiTheme = createTheme({
-  palette: {
-    primary: { main: '#0052CC' },
-    secondary: { main: '#6554C0' },
-    background: { default: '#F4F5F7' }, // Example default background
-  },
-  typography: {
-    fontFamily: [
-      '-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'Roboto', 'Oxygen',
-      'Ubuntu', 'Cantarell', '"Fira Sans"', '"Droid Sans"', '"Helvetica Neue"',
-      'sans-serif',
-    ].join(','),
-  },
-});
+const getMuiTheme = (mode) => {
+  const isDark = mode === 'dark';
+  return createTheme({
+    palette: {
+      mode: isDark ? 'dark' : 'light',
+      primary: { main: '#0052CC' },
+      secondary: { main: '#6554C0' },
+      background: {
+        default: isDark ? '#121212' : '#F4F5F7',
+        paper: isDark ? '#1E1E1E' : '#FFFFFF',
+      },
+    },
+    typography: {
+      fontFamily: [
+        '-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'Roboto', 'Oxygen',
+        'Ubuntu', 'Cantarell', '"Fira Sans"', '"Droid Sans"', '"Helvetica Neue"',
+        'sans-serif',
+      ].join(','),
+    },
+  });
+};
 
 // ----------------------------------------------------
 // -- ProtectedRoute with Company Admin Authorization
@@ -285,6 +296,19 @@ const AppContent = () => {
     // The dependency array is updated to use the single source of truth for the user.
   }, [isAuthenticated, authUser]);
 
+  // Compute effective mode for MUI
+  const muiTheme = useMemo(() => {
+    let effectiveMode = currentGlobalThemeFromContext;
+    if (effectiveMode === 'system') {
+      try {
+        effectiveMode = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      } catch (e) {
+        effectiveMode = 'light';
+      }
+    }
+    return getMuiTheme(effectiveMode);
+  }, [currentGlobalThemeFromContext]);
+
   return (
     <MuiThemeProvider theme={muiTheme}>
       <CssBaseline />
@@ -315,6 +339,7 @@ const AppContent = () => {
         >
           <Route index element={<Navigate to="/dashboard" replace />} />
           <Route path="dashboard" element={<DashboardPage />} />
+          <Route path="forecast" element={<CommercialForecast />} />
 
           <Route path="profile" element={<UserProfilePage />} />
           <Route path="profile/setup-2fa" element={<SetupTwoFactorPage />} />
@@ -324,6 +349,14 @@ const AppContent = () => {
             element={
               <ProtectedRoute isCompanyManagerRoute={true}>
                 <TenantManagerPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="datasource"
+            element={
+              <ProtectedRoute isCompanyManagerRoute={true}>
+                <DatabricksConnect />
               </ProtectedRoute>
             }
           />

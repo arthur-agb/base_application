@@ -43,6 +43,8 @@ import attachmentRoutes from './routes/attachmentRoutes.js';
 import dashboardRoutes from './routes/dashboardRoutes.js';
 import searchRoutes from './routes/searchRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
+import databricksRoutes from './routes/databricks.js';
+import databricksOAuthRoutes from './routes/databricksOAuth.js';
 
 
 
@@ -142,6 +144,8 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/search', searchRoutes);
 app.use('/api', attachmentRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/databricks', databricksRoutes);
+app.use('/api/databricks', databricksOAuthRoutes);
 
 // Serve uploaded files
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));

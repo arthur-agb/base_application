@@ -4,7 +4,7 @@ import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { logout } from '../../features/auth';
 import { updateSelfProfile } from '../../features/users';
-import { MdDashboard, MdAssignment, MdSettings, MdAccountCircle, MdAdminPanelSettings } from 'react-icons/md';
+import { MdDashboard, MdAssignment, MdSettings, MdAccountCircle, MdAdminPanelSettings, MdTimeline, MdStorage } from 'react-icons/md';
 
 // Import Constants
 import {
@@ -61,6 +61,7 @@ const Layout = () => {
 
     const primaryMenuItems = useMemo(() => [
         { text: 'Dashboard', icon: <MdDashboard size={SIDEBAR_ICON_SIZE} />, path: '/dashboard' },
+        { text: 'Commercial Planning', icon: <MdTimeline size={SIDEBAR_ICON_SIZE} />, path: '/forecast' },
     ], []);
 
     const managementMenuItems = useMemo(() => [
@@ -70,6 +71,13 @@ const Layout = () => {
             path: '/workspace/settings',
             companyAdminOrManagerOnly: true,
             indicator: { text: 'M', className: 'bg-blue-500 text-white' } // Management indicator
+        },
+        {
+            text: 'Data Sources',
+            icon: <MdStorage size={SIDEBAR_ICON_SIZE} />,
+            path: '/datasource',
+            companyAdminOrManagerOnly: true,
+            indicator: { text: 'D', className: 'bg-green-600 text-white' }
         },
         {
             text: 'User Approval',
