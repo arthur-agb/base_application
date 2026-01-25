@@ -4,7 +4,7 @@ import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { logout } from '../../features/auth';
 import { updateSelfProfile } from '../../features/users';
-import { MdDashboard, MdAssignment, MdSettings, MdAccountCircle, MdAdminPanelSettings, MdTimeline, MdStorage } from 'react-icons/md';
+import { MdDashboard, MdAssignment, MdSettings, MdAccountCircle, MdAdminPanelSettings, MdTimeline, MdStorage, MdTableChart } from 'react-icons/md';
 
 // Import Constants
 import {
@@ -78,6 +78,13 @@ const Layout = () => {
             path: '/datasource',
             companyAdminOrManagerOnly: true,
             indicator: { text: 'D', className: 'bg-green-600 text-white' }
+        },
+        {
+            text: 'Data Modeler',
+            icon: <MdTableChart size={SIDEBAR_ICON_SIZE} />,
+            path: '/datamodeler',
+            companyAdminOrManagerOnly: true,
+            indicator: { text: 'O', className: 'bg-orange-500 text-white' } // Orchestration indicator
         },
         {
             text: 'User Approval',

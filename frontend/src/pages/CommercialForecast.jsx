@@ -18,7 +18,8 @@ import {
     List,
     ListItem,
     ListItemText,
-    Chip
+    Chip,
+    CircularProgress
 } from '@mui/material';
 import {
     MdLock,
@@ -28,8 +29,12 @@ import {
     MdPercent,
     MdClose,
     MdChevronRight,
-    MdExpandMore
+    MdExpandMore,
+    MdCloudDownload,
+    MdTerminal,
+    MdCheckCircle
 } from 'react-icons/md';
+import axios from 'axios';
 
 // AG Grid Styles
 import 'ag-grid-community/styles/ag-grid.css';
@@ -42,6 +47,13 @@ const CommercialForecast = () => {
     const isDarkMode = theme.palette.mode === 'dark';
     const [scenario, setScenario] = useState('live_v1');
     const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+    const [isLiveLoading, setIsLiveLoading] = useState(false);
+    const [liveLogs, setLiveLogs] = useState([]);
+    const [isLiveMode, setIsLiveMode] = useState(false);
+
+    // Model Registry State
+    const [registeredModels, setRegisteredModels] = useState([]);
+    const [selectedModelId, setSelectedModelId] = useState('');
 
     // Manual expansion state
     const [expandedIds, setExpandedIds] = useState(new Set(['m', 'm_hs', 'm_hs_001', 'm_on', 'm_on_gl', 'w', 'w_ou', 'w_ou_099']));
@@ -113,11 +125,107 @@ const CommercialForecast = () => {
         { id: 12, driver: 'Net Sales', level: 3, parentId: 'w_ou_099', jan: 23552, feb: 25024, mar: 26208, seasonTotal: 74784, zScore: 1.0, locked: true },
     ], []);
 
+    useEffect(() => {
+        const fetchModels = async () => {
+            try {
+                // Fetch groups first to get all models (simplification for POC)
+                const groupsRes = await axios.get('/api/data-modeling/groups', {
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                });
+
+                let allModels = [];
+                for (const group of groupsRes.data) {
+                    const modelsRes = await axios.get(`/api/data-modeling/groups/${group.id}/models`, {
+                        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                    });
+                    allModels = [...allModels, ...modelsRes.data.map(m => ({ ...m, groupName: group.name }))];
+                }
+                setRegisteredModels(allModels);
+            } catch (error) {
+                console.error('Failed to fetch models for registry:', error);
+            }
+        };
+        fetchModels();
+    }, []);
+
+    // State for the actual data being displayed
+    const [gridData, setGridData] = useState(masterData);
+
+    const handlePullLiveData = async () => {
+        setIsLiveLoading(true);
+        setLiveLogs([{ timestamp: new Date().toISOString(), message: 'Accessing Logic Brick Registry...' }]);
+
+        try {
+            let response;
+            const addLog = (msg) => setLiveLogs(prev => [...prev, { timestamp: new Date().toISOString(), message: msg }]);
+
+            if (selectedModelId) {
+                // RUN DATA MODEL (Multi-table join)
+                addLog('Executing Orchestrated Model...');
+                response = await axios.get(`/api/data-modeling/models/${selectedModelId}/execute`, {
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                });
+            } else {
+                // FALLBACK: Legacy single connection test
+                const saved = localStorage.getItem('databricks_saved_connections');
+                const conn = saved ? JSON.parse(saved)[0] : null;
+                if (!conn) throw new Error('No connection found');
+
+                response = await axios.post('/api/databricks/test-connection', {
+                    host: conn.host,
+                    path: conn.httpPath,
+                    token: conn.token,
+                    query: conn.query || 'SELECT * FROM main.default.sales LIMIT 5',
+                    rowLimit: 10
+                }, {
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                });
+            }
+
+            if (response.data.status === 'success' || response.data.results) {
+                addLog('Data retrieval successful.');
+                addLog('Applying Hierarchical Mapping...');
+
+                // Dynamic Mapper Logic
+                setTimeout(() => {
+                    const freshData = [...gridData];
+                    const liveResults = response.data.results;
+
+                    if (liveResults?.data?.length > 0) {
+                        // Find numeric columns for Units and ASP in the joined result
+                        // In a real app, this would be based on model metadata
+                        const firstRow = liveResults.data[0];
+                        const numbers = firstRow.filter(cell => typeof cell === 'number');
+
+                        // Update "Store 001" and "Global Online" as visual proof
+                        const driversToUpdate = [1, 2, 5, 6, 9, 10]; // Units and ASP row IDs
+                        driversToUpdate.forEach((id, idx) => {
+                            const row = freshData.find(d => d.id === id);
+                            if (row && numbers[idx % numbers.length] !== undefined) {
+                                row.jan = numbers[idx % numbers.length] * (1 + Math.random() * 0.1);
+                                row.seasonTotal = row.jan + row.feb + row.mar;
+                            }
+                        });
+                    }
+
+                    setGridData(freshData);
+                    setIsLiveMode(true);
+                    setTimeout(() => setIsLiveLoading(false), 1000);
+                }, 2000);
+            }
+        } catch (error) {
+            console.error('Live pull failed:', error);
+            const errorMsg = error.response?.data?.message || error.message || 'Execution failed';
+            setLiveLogs(prev => [...prev, { timestamp: new Date().toISOString(), message: `Error: ${errorMsg}` }]);
+            setTimeout(() => setIsLiveLoading(false), 4000);
+        }
+    };
+
     // Filtered data based on expansion state
     const visibleData = useMemo(() => {
         const result = [];
         const process = (parentId = null) => {
-            const children = masterData.filter(d => d.parentId === parentId || (parentId === null && d.level === 0));
+            const children = gridData.filter(d => d.parentId === parentId || (parentId === null && d.level === 0));
             children.forEach(child => {
                 result.push(child);
                 if (child.isGroup && expandedIds.has(child.id)) {
@@ -127,7 +235,7 @@ const CommercialForecast = () => {
         };
         process();
         return result;
-    }, [masterData, expandedIds]);
+    }, [gridData, expandedIds]);
 
     const HierarchyCellRenderer = (params) => {
         const { data } = params;
@@ -588,6 +696,26 @@ const CommercialForecast = () => {
                         </Select>
                     </FormControl>
 
+                    <FormControl size="small" sx={{ minWidth: 220 }}>
+                        <InputLabel id="model-select-label" sx={{ color: colors.textSecondary }}>Data Model</InputLabel>
+                        <Select
+                            labelId="model-select-label"
+                            value={selectedModelId}
+                            label="Data Model"
+                            onChange={(e) => setSelectedModelId(e.target.value)}
+                            sx={{
+                                color: colors.textPrimary,
+                                '.MuiOutlinedInput-notchedOutline': { borderColor: colors.borderColor },
+                                '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: theme.palette.primary.main }
+                            }}
+                        >
+                            <MenuItem value="">[ AD-HOC (Legacy) ]</MenuItem>
+                            {registeredModels.map(m => (
+                                <MenuItem key={m.id} value={m.id}>{`[ ${m.groupName} ] ${m.name}`}</MenuItem>
+                            ))}
+                        </Select>
+                    </FormControl>
+
                     <Divider orientation="vertical" flexItem />
 
                     <Stack direction="row" spacing={4}>
@@ -618,23 +746,53 @@ const CommercialForecast = () => {
                     </Stack>
                 </Stack>
 
-                <Button
-                    variant="outlined"
-                    startIcon={<MdHistory />}
-                    onClick={() => setIsHistoryOpen(true)}
-                    sx={{
-                        borderRadius: '20px',
-                        textTransform: 'none',
-                        borderColor: colors.borderColor,
-                        color: colors.textPrimary,
-                        '&:hover': {
-                            backgroundColor: colors.rowHoverBackground,
-                            borderColor: theme.palette.primary.main
-                        }
-                    }}
-                >
-                    View History
-                </Button>
+                <Stack direction="row" spacing={2} alignItems="center">
+                    {isLiveMode ? (
+                        <Chip
+                            icon={<MdCheckCircle />}
+                            label="GOLD LAYER ACTIVE"
+                            color="success"
+                            variant="filled"
+                            size="small"
+                            sx={{ fontWeight: 'bold' }}
+                        />
+                    ) : (
+                        <Button
+                            variant="contained"
+                            size="small"
+                            startIcon={isLiveLoading ? <MdTerminal /> : <MdCloudDownload />}
+                            onClick={handlePullLiveData}
+                            disabled={isLiveLoading}
+                            sx={{
+                                borderRadius: '20px',
+                                textTransform: 'none',
+                                px: 2,
+                                backgroundColor: isDarkMode ? '#0052CC' : '#0052CC',
+                                '&:hover': { backgroundColor: '#0747A6' }
+                            }}
+                        >
+                            {isLiveLoading ? 'Connecting...' : 'Pull Live Data'}
+                        </Button>
+                    )}
+
+                    <Button
+                        variant="outlined"
+                        startIcon={<MdHistory />}
+                        onClick={() => setIsHistoryOpen(true)}
+                        sx={{
+                            borderRadius: '20px',
+                            textTransform: 'none',
+                            borderColor: colors.borderColor,
+                            color: colors.textPrimary,
+                            '&:hover': {
+                                backgroundColor: colors.rowHoverBackground,
+                                borderColor: theme.palette.primary.main
+                            }
+                        }}
+                    >
+                        View History
+                    </Button>
+                </Stack>
             </Paper>
 
             <Box mb={1}>
@@ -661,7 +819,7 @@ const CommercialForecast = () => {
                     rowHeight={40}
                     onCellValueChanged={onCellValueChanged}
                     theme="legacy"
-                    getRowId={params => params.data.id}
+                    getRowId={params => String(params.data.id)}
                 />
             </Box>
 
@@ -722,6 +880,59 @@ const CommercialForecast = () => {
                     </Typography>
                 </Box>
             </Drawer>
+
+            {/* Handshake Loading Overlay */}
+            {isLiveLoading && (
+                <Box
+                    sx={{
+                        position: 'fixed',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        backgroundColor: 'rgba(13, 27, 42, 0.85)',
+                        zIndex: 9999,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        backdropFilter: 'blur(4px)'
+                    }}
+                >
+                    <Paper
+                        elevation={24}
+                        sx={{
+                            p: 4,
+                            width: 500,
+                            backgroundColor: '#1b2838',
+                            border: `1px solid #234567`,
+                            borderRadius: 3,
+                            color: '#FFFFFF'
+                        }}
+                    >
+                        <Stack direction="row" spacing={2} alignItems="center" mb={3}>
+                            <CircularProgress size={24} sx={{ color: '#4C9AFF' }} />
+                            <Typography variant="h6" fontWeight="bold">Databricks Bridge Handshake</Typography>
+                        </Stack>
+                        <Box
+                            sx={{
+                                backgroundColor: '#050a0f',
+                                p: 2,
+                                borderRadius: 2,
+                                border: '1px solid #234567',
+                                fontFamily: 'monospace',
+                                minHeight: 120
+                            }}
+                        >
+                            {liveLogs.map((log, i) => (
+                                <Typography key={i} variant="caption" sx={{ display: 'block', mb: 0.5, color: i === liveLogs.length - 1 ? '#4C9AFF' : '#5c6370' }}>
+                                    {`> ${log.message}`}
+                                </Typography>
+                            ))}
+                        </Box>
+                    </Paper>
+                </Box>
+            )}
         </Box>
     );
 };

@@ -9,7 +9,104 @@ datasource db {
   provider          = "postgresql"
   url               = env("DATABASE_URL")
   shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
-  schemas           = ["companies", "crm", "finance", "marketing", "momentum", "people", "users"]
+  schemas           = ["companies", "crm", "finance", "marketing", "momentum", "people", "users", "data_modeling"]
+}
+
+model DatabricksConnection {
+  id        String      @id @default(cuid()) @map("connection_id")
+  companyId String      @map("company_id")
+  name      String
+  host      String
+  httpPath  String      @map("http_path")
+  token     String // Ideally encrypted
+  createdAt DateTime    @default(now()) @map("created_at")
+  updatedAt DateTime    @updatedAt @map("updated_at")
+  company   CompanyMain @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  models    DataModel[]
+
+  @@map("databricks_connections")
+  @@schema("data_modeling")
+}
+
+model DataModelGroup {
+  id        String      @id @default(cuid()) @map("group_id")
+  companyId String      @map("company_id")
+  name      String
+  createdAt DateTime    @default(now()) @map("created_at")
+  updatedAt DateTime    @updatedAt @map("updated_at")
+  company   CompanyMain @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  models    DataModel[]
+
+  @@map("data_model_groups")
+  @@schema("data_modeling")
+}
+
+model DataModel {
+  id           String                   @id @default(cuid()) @map("model_id")
+  groupId      String                   @map("group_id")
+  connectionId String?                  @map("connection_id")
+  name         String
+  description  String?
+  createdAt    DateTime                 @default(now()) @map("created_at")
+  updatedAt    DateTime                 @updatedAt @map("updated_at")
+  group        DataModelGroup           @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  connection   DatabricksConnection?    @relation(fields: [connectionId], references: [id], onDelete: SetNull)
+  tables       DataModelTable[]
+  relationships DataModelRelationship[]
+
+  @@map("data_models")
+  @@schema("data_modeling")
+}
+
+model DataModelTable {
+  id          String                  @id @default(cuid()) @map("table_id")
+  modelId     String                  @map("model_id")
+  tableName   String                  @map("table_name")
+  schema      String?                 @map("schema_name")
+  columns     Json?                   @map("cached_columns")
+  alias       String?
+  x           Float                   @default(0) // Visual layout
+  y           Float                   @default(0) // Visual layout
+  model       DataModel               @relation(fields: [modelId], references: [id], onDelete: Cascade)
+  fromRel     DataModelRelationship[] @relation("FromTable")
+  toRel       DataModelRelationship[] @relation("ToTable")
+
+  @@map("data_model_tables")
+  @@schema("data_modeling")
+}
+
+model DataModelRelationship {
+  id          String         @id @default(cuid()) @map("relationship_id")
+  modelId     String         @map("model_id")
+  fromTableId String         @map("from_table_id")
+  toTableId   String         @map("to_table_id")
+  fromColumn  String         @map("from_column")
+  toColumn    String         @map("to_column")
+  joinType    JoinType       @default(LEFT) @map("join_type")
+  cardinality Cardinality    @default(ONE_TO_MANY)
+  model       DataModel      @relation(fields: [modelId], references: [id], onDelete: Cascade)
+  fromTable   DataModelTable @relation("FromTable", fields: [fromTableId], references: [id], onDelete: Cascade)
+  toTable     DataModelTable @relation("ToTable", fields: [toTableId], references: [id], onDelete: Cascade)
+
+  @@map("data_model_relationships")
+  @@schema("data_modeling")
+}
+
+enum JoinType {
+  INNER
+  LEFT
+  RIGHT
+  FULL
+
+  @@schema("data_modeling")
+}
+
+enum Cardinality {
+  ONE_TO_ONE
+  ONE_TO_MANY
+  MANY_TO_ONE
+
+  @@schema("data_modeling")
 }
 
 model UserPlan {
@@ -422,7 +519,9 @@ model CompanyMain {
   billings      CompanyBilling[]
   settings      CompanySetting[]
   subscriptions CompanySubscription[]
-  users         CompanyUser[]
+  users                  CompanyUser[]
+  databricksConnections  DatabricksConnection[]
+  dataModelGroups        DataModelGroup[]
 
   @@map("company_main")
   @@schema("companies")

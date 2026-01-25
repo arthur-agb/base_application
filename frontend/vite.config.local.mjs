@@ -20,7 +20,8 @@ export default defineConfig({
 
     // ADDED: Best practice for Docker to ensure Hot Module Replacement (HMR) works through Caddy.
     hmr: {
-      clientPort: 443
+      clientPort: 443,
+      path: '/vite-hmr'
     },
     watch: {
       usePolling: true // Helps detect file changes inside Docker

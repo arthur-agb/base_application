@@ -22,7 +22,7 @@ socketService.configureSocketService(store.dispatch);
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <Provider store={store}>
-    <BrowserRouter>
+    <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <App /> {/* Ensure QueryClientProvider is in App.jsx or wrapping it */}
     </BrowserRouter>
   </Provider>

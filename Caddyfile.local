@@ -22,7 +22,12 @@
         reverse_proxy backend_local:5000
     }
 
-    # 3. Proxy static uploads
+    # 3. Proxy Vite HMR
+    handle /vite-hmr {
+        reverse_proxy frontend_local:3000
+    }
+
+    # 4. Proxy static uploads
     handle /uploads/* {
         reverse_proxy backend_local:5000
     }

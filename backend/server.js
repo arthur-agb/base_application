@@ -45,6 +45,7 @@ import searchRoutes from './routes/searchRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
 import databricksRoutes from './routes/databricks.js';
 import databricksOAuthRoutes from './routes/databricksOAuth.js';
+import dataModelingRoutes from './routes/dataModelingRoutes.js';
 
 
 
@@ -96,7 +97,6 @@ const corsOptions = {
 // Set up Socket.io
 const io = new Server(server, {
   cors: corsOptions,
-  transports: ['websocket'],
 });
 
 // Socket.io middleware and handlers
@@ -145,7 +145,8 @@ app.use('/api/search', searchRoutes);
 app.use('/api', attachmentRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/databricks', databricksRoutes);
-app.use('/api/databricks', databricksOAuthRoutes);
+app.use('/api/databricks/oauth', databricksOAuthRoutes);
+app.use('/api/data-modeling', dataModelingRoutes);
 
 // Serve uploaded files
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));

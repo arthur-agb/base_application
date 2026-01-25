@@ -70,6 +70,7 @@ import {
 // New Feature Imports
 import CommercialForecast from './pages/CommercialForecast';
 import DatabricksConnect from './pages/admin/DatabricksConnect';
+import DataModeler from './pages/admin/DataModeler';
 
 // ----------------------------------------
 // -- MUI Theme Generator
@@ -357,6 +358,14 @@ const AppContent = () => {
             element={
               <ProtectedRoute isCompanyManagerRoute={true}>
                 <DatabricksConnect />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="datamodeler"
+            element={
+              <ProtectedRoute isCompanyManagerRoute={true}>
+                <DataModeler />
               </ProtectedRoute>
             }
           />

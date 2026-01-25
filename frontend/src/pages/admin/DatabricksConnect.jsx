@@ -26,7 +26,10 @@ import {
     Dialog,
     DialogTitle,
     DialogContent,
-    DialogActions
+    DialogActions,
+    Switch,
+    FormControlLabel,
+    Paper
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import {
@@ -39,13 +42,13 @@ import {
     MdCloud,
     MdSave,
     MdDelete,
-    MdAdd
+    MdAdd,
+    MdTerminal,
+    MdShield
 } from 'react-icons/md';
 import axios from 'axios';
 import { useSearchParams } from 'react-router-dom';
 
-// Local storage key for saved connections
-const SAVED_CONNECTIONS_KEY = 'databricks_saved_connections';
 
 const DatabricksConnect = () => {
     const theme = useTheme();
@@ -109,26 +112,38 @@ const DatabricksConnect = () => {
     // General notification
     const [notification, setNotification] = useState(null);
 
+    // Safety & Logging
+    const [useSafetyLimit, setUseSafetyLimit] = useState(true);
+    const [connectionLogs, setConnectionLogs] = useState([]);
+
     // SSO loading state
     const [ssoLoading, setSsoLoading] = useState(false);
-
-    // Load saved connections from localStorage
-    useEffect(() => {
-        try {
-            const saved = localStorage.getItem(SAVED_CONNECTIONS_KEY);
-            if (saved) {
-                setSavedConnections(JSON.parse(saved));
-            }
-        } catch (error) {
-            console.error('Failed to load saved connections:', error);
-        }
-    }, []);
 
     // Get auth token for API calls
     const getAuthHeaders = useCallback(() => ({
         'Authorization': `Bearer ${localStorage.getItem('token')}`,
         'Content-Type': 'application/json'
     }), []);
+
+    // Load saved connections from Backend
+    const fetchSavedConnections = useCallback(async () => {
+        try {
+            const response = await axios.get('/api/databricks/connections', {
+                headers: getAuthHeaders()
+            });
+            setSavedConnections(response.data);
+        } catch (error) {
+            console.error('Failed to load saved connections:', error);
+            setNotification({
+                type: 'error',
+                message: 'Failed to sync saved connections'
+            });
+        }
+    }, [getAuthHeaders]);
+
+    useEffect(() => {
+        fetchSavedConnections();
+    }, [fetchSavedConnections]);
 
     // Check SSO connection status on mount
     const checkSSOStatus = useCallback(async () => {
@@ -155,6 +170,10 @@ const DatabricksConnect = () => {
         }
     }, [getAuthHeaders]);
 
+    useEffect(() => {
+        checkSSOStatus();
+    }, [checkSSOStatus]);
+
     // Handle URL parameters from OAuth callback
     useEffect(() => {
         const success = searchParams.get('success');
@@ -177,9 +196,6 @@ const DatabricksConnect = () => {
         }
     }, [searchParams, setSearchParams, checkSSOStatus]);
 
-    useEffect(() => {
-        checkSSOStatus();
-    }, [checkSSOStatus]);
 
     const handleChange = (e) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -219,84 +235,62 @@ const DatabricksConnect = () => {
         }
     };
 
-    // Save current connection (handles both new and overwrite)
-    const handleSaveConnection = () => {
+    // Save current connection (Backend)
+    const handleSaveConnection = async () => {
         if (!newConnectionName.trim()) {
-            setNotification({
-                type: 'error',
-                message: 'Please enter a connection name'
-            });
+            setNotification({ type: 'error', message: 'Please enter a connection name' });
             return;
         }
 
         const connectionData = {
+            id: selectedConnectionId || undefined, // undefined for new
             name: newConnectionName.trim(),
             host: formData.host,
             httpPath: formData.httpPath,
             token: formData.token,
-            authMethod,
-            createdAt: new Date().toISOString()
         };
 
-        let updatedConnections;
-        let newId;
+        try {
+            await axios.post('/api/databricks/connections', connectionData, {
+                headers: getAuthHeaders()
+            });
 
-        // Check if we are updating the currently selected connection
-        if (selectedConnectionId) {
-            // If the name is the same, overwrite it. If changed, ask user (or just save as new which is safer/simpler UI for now)
-            // Ideally we'd have a specific "Overwrite" button, but for this UI let's check:
-            const existing = savedConnections.find(c => c.id === selectedConnectionId);
+            await fetchSavedConnections();
 
-            if (existing && existing.name === newConnectionName.trim()) {
-                // Overwrite existing
-                updatedConnections = savedConnections.map(c =>
-                    c.id === selectedConnectionId ? { ...c, ...connectionData, id: c.id } : c
-                );
-                newId = selectedConnectionId;
-            } else {
-                // Save as new (name changed or explicitly new)
-                newId = Date.now().toString();
-                updatedConnections = [...savedConnections, { ...connectionData, id: newId }];
-            }
-        } else {
-            // New connection
-            newId = Date.now().toString();
-            updatedConnections = [...savedConnections, { ...connectionData, id: newId }];
+            setNewConnectionName('');
+            setSaveDialogOpen(false);
+            setNotification({
+                type: 'success',
+                message: `Connection "${connectionData.name}" saved successfully`
+            });
+        } catch (error) {
+            console.error('Save failed:', error);
+            setNotification({
+                type: 'error',
+                message: 'Failed to save connection to backend'
+            });
         }
-
-        setSavedConnections(updatedConnections);
-        localStorage.setItem(SAVED_CONNECTIONS_KEY, JSON.stringify(updatedConnections));
-
-        setSelectedConnectionId(newId);
-        setNewConnectionName('');
-        setSaveDialogOpen(false);
-
-        setNotification({
-            type: 'success',
-            message: `Connection "${connectionData.name}" saved successfully`
-        });
     };
 
-    // Delete a saved connection
-    const handleDeleteConnection = (connectionId) => {
-        const updated = savedConnections.filter(c => c.id !== connectionId);
-        setSavedConnections(updated);
-        localStorage.setItem(SAVED_CONNECTIONS_KEY, JSON.stringify(updated));
+    // Delete a saved connection (Backend)
+    const handleDeleteConnection = async (connectionId) => {
+        try {
+            await axios.delete(`/api/databricks/connections/${connectionId}`, {
+                headers: getAuthHeaders()
+            });
 
-        if (selectedConnectionId === connectionId) {
-            setSelectedConnectionId('');
-            setFormData(prev => ({
-                ...prev,
-                host: '',
-                httpPath: '',
-                token: ''
-            }));
+            await fetchSavedConnections();
+
+            if (selectedConnectionId === connectionId) {
+                setSelectedConnectionId('');
+                setFormData(prev => ({ ...prev, host: '', httpPath: '', token: '' }));
+            }
+
+            setNotification({ type: 'info', message: 'Connection deleted' });
+        } catch (error) {
+            console.error('Delete failed:', error);
+            setNotification({ type: 'error', message: 'Failed to delete connection' });
         }
-
-        setNotification({
-            type: 'info',
-            message: 'Connection deleted'
-        });
     };
 
     // Connect with PAT
@@ -317,7 +311,8 @@ const DatabricksConnect = () => {
                 host: formData.host,
                 path: formData.httpPath,
                 token: formData.token,
-                query: 'SELECT 1 as test'
+                query: 'SELECT 1 as test',
+                rowLimit: useSafetyLimit ? 100 : 1000
             }, {
                 headers: getAuthHeaders()
             });
@@ -329,6 +324,17 @@ const DatabricksConnect = () => {
                     method: 'pat',
                     loading: false
                 });
+
+                if (response.data.logs) {
+                    // Simulated live logging for "wow" effect
+                    setConnectionLogs([]);
+                    response.data.logs.forEach((log, index) => {
+                        setTimeout(() => {
+                            setConnectionLogs(prev => [...prev, log]);
+                        }, index * 400); // 400ms delay per log
+                    });
+                }
+
                 setNotification({
                     type: 'success',
                     message: 'Successfully connected to Databricks'
@@ -337,6 +343,14 @@ const DatabricksConnect = () => {
         } catch (error) {
             console.error('PAT connection error:', error);
             setConnectionStatus(prev => ({ ...prev, loading: false }));
+            if (error.response?.data?.logs) {
+                setConnectionLogs([]);
+                error.response.data.logs.forEach((log, index) => {
+                    setTimeout(() => {
+                        setConnectionLogs(prev => [...prev, log]);
+                    }, index * 400);
+                });
+            }
             setNotification({
                 type: 'error',
                 message: error.response?.data?.message || 'Failed to connect. Please check your credentials.'
@@ -431,7 +445,8 @@ const DatabricksConnect = () => {
                     host: formData.host,
                     path: formData.httpPath,
                     token: formData.token,
-                    query: formData.query
+                    query: formData.query,
+                    rowLimit: useSafetyLimit ? 100 : 1000
                 }, {
                     headers: getAuthHeaders()
                 });
@@ -442,6 +457,15 @@ const DatabricksConnect = () => {
                 result: response.data,
                 error: null
             });
+
+            if (response.data.logs) {
+                // For queries, we might want faster logs
+                response.data.logs.forEach((log, index) => {
+                    setTimeout(() => {
+                        setConnectionLogs(prev => [...prev, log]);
+                    }, index * 200);
+                });
+            }
         } catch (error) {
             console.error('Query execution error:', error);
 
@@ -463,6 +487,10 @@ const DatabricksConnect = () => {
                 result: null,
                 error: error.response?.data?.message || 'Failed to execute query'
             });
+
+            if (error.response?.data?.logs) {
+                setConnectionLogs(prev => [...prev, ...error.response.data.logs]);
+            }
         }
     };
 
@@ -641,9 +669,29 @@ const DatabricksConnect = () => {
                     border: `1px solid ${colors.borderColor}`
                 }}
             >
-                <Typography variant="subtitle1" fontWeight="600" color="text.primary">
-                    Connection Details
-                </Typography>
+                <Stack direction="row" justifyContent="space-between" alignItems="center">
+                    <Typography variant="subtitle1" fontWeight="600" color="text.primary">
+                        Connection Details
+                    </Typography>
+                    <FormControlLabel
+                        control={
+                            <Switch
+                                size="small"
+                                checked={useSafetyLimit}
+                                onChange={(e) => setUseSafetyLimit(e.target.checked)}
+                                color="primary"
+                            />
+                        }
+                        label={
+                            <Stack direction="row" spacing={0.5} alignItems="center">
+                                <MdShield size={14} color={theme.palette.primary.main} />
+                                <Typography variant="caption" fontWeight="bold">
+                                    Safety Limit (100)
+                                </Typography>
+                            </Stack>
+                        }
+                    />
+                </Stack>
 
                 <TextField
                     fullWidth
@@ -777,6 +825,80 @@ const DatabricksConnect = () => {
                 )}
             </Box>
 
+            {/* Connection Handshake Logs */}
+            {connectionLogs.length > 0 && (
+                <Box sx={{ mt: 3 }}>
+                    <Stack direction="row" alignItems="center" spacing={1} mb={1}>
+                        <MdTerminal color={colors.textSecondary} />
+                        <Typography variant="subtitle2" color="text.secondary" fontWeight="bold">
+                            HANDSHAKE CONSOLE
+                        </Typography>
+                        <Button
+                            size="small"
+                            variant="text"
+                            onClick={() => setConnectionLogs([])}
+                            sx={{ color: colors.textSecondary, textTransform: 'none', fontSize: '0.75rem' }}
+                        >
+                            Clear
+                        </Button>
+                    </Stack>
+                    <Paper
+                        elevation={0}
+                        sx={{
+                            p: 2,
+                            backgroundColor: isDarkMode ? '#050a0f' : '#f8f9fa',
+                            border: `1px solid ${colors.borderColor}`,
+                            borderRadius: 1,
+                            fontFamily: 'monospace',
+                            fontSize: '0.85rem',
+                            maxHeight: 200,
+                            overflowY: 'auto',
+                            '&::-webkit-scrollbar': {
+                                width: '8px',
+                            },
+                            '&::-webkit-scrollbar-track': {
+                                background: 'transparent',
+                            },
+                            '&::-webkit-scrollbar-thumb': {
+                                background: colors.borderColor,
+                                borderRadius: '4px',
+                            },
+                        }}
+                    >
+                        {connectionLogs.map((log, idx) => (
+                            <Box key={idx} sx={{ display: 'flex', mb: 0.5 }}>
+                                <Typography
+                                    variant="caption"
+                                    sx={{
+                                        color: '#5c6370',
+                                        minWidth: 160,
+                                        mr: 2,
+                                        fontFamily: 'inherit'
+                                    }}
+                                >
+                                    [{new Date(log.timestamp).toLocaleTimeString()}]
+                                </Typography>
+                                <Typography
+                                    variant="caption"
+                                    sx={{
+                                        color: log.message.startsWith('Error')
+                                            ? '#e06c75'
+                                            : log.message.includes('successful') || log.message.includes('Verified') || log.message.includes('gracefully')
+                                                ? '#98c379'
+                                                : isDarkMode ? '#abb2bf' : '#282c34',
+                                        fontFamily: 'inherit'
+                                    }}
+                                >
+                                    {log.message.startsWith('Error') ? '> ' : '> '}{log.message}
+                                </Typography>
+                            </Box>
+                        ))}
+                    </Paper>
+                </Box>
+            )}
+
+            {/* Removed standalone Safety Settings card as it is now integrated into Connection Details */}
+
             {/* Query Error */}
             {queryState.error && (
                 <Alert severity="error" sx={{ mt: 3 }}>
@@ -866,7 +988,7 @@ const DatabricksConnect = () => {
                         </Typography>
                         <Typography variant="body2">Host: {formData.host}</Typography>
                         <Typography variant="body2">Path: {formData.httpPath}</Typography>
-                        <Typography variant="body2">Token: ••••••••{formData.token.slice(-4)}</Typography>
+                        <Typography variant="body2">Token: ••••••••{(formData.token || '').slice(-4)}</Typography>
                     </Box>
                 </DialogContent>
                 <DialogActions>

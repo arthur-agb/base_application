@@ -45,7 +45,6 @@ const initSocket = () => {
   socket = io({
     path: '/socket.io', // This path must match your Caddy and backend configuration
     auth: { token },
-    transports: ['websocket'],
     reconnection: true,
     reconnectionDelay: 3000,
     reconnectionAttempts: 5,
