@@ -53,6 +53,8 @@ model DataModel {
   connection   DatabricksConnection?    @relation(fields: [connectionId], references: [id], onDelete: SetNull)
   tables       DataModelTable[]
   relationships DataModelRelationship[]
+  isGroupByAll Boolean @default(false) @map("is_group_by_all")
+  filters      Json?   @map("filters")
 
   @@map("data_models")
   @@schema("data_modeling")
@@ -65,6 +67,7 @@ model DataModelTable {
   schema      String?                 @map("schema_name")
   columns     Json?                   @map("cached_columns")
   alias       String?
+  selectedColumns Json?                 @map("selected_columns")
   x           Float                   @default(0) // Visual layout
   y           Float                   @default(0) // Visual layout
   model       DataModel               @relation(fields: [modelId], references: [id], onDelete: Cascade)

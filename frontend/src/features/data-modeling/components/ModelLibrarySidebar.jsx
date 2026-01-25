@@ -184,6 +184,7 @@ const ModelLibrarySidebar = ({ onSelectModel, activeModelId, colors, refreshTrig
                                         activeModelId={activeModelId}
                                         onOpenNewModel={() => handleOpenNewModelDialog(group.id)}
                                         refreshTrigger={refreshTrigger}
+                                        colors={colors}
                                     />
                                 </Collapse>
                             </React.Fragment>
@@ -283,12 +284,14 @@ const ModelLibrarySidebar = ({ onSelectModel, activeModelId, colors, refreshTrig
 };
 
 // Helper component to fetch models within a group
-const GroupModels = ({ groupId, onSelectModel, activeModelId, onOpenNewModel, refreshTrigger }) => {
+const GroupModels = ({ groupId, onSelectModel, activeModelId, onOpenNewModel, refreshTrigger, colors }) => {
     const [models, setModels] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
 
     const fetchModels = async () => {
         setLoading(true);
+        setError(null);
         try {
             const response = await axios.get(`/api/data-modeling/groups/${groupId}/models`, {
                 headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
@@ -297,6 +300,7 @@ const GroupModels = ({ groupId, onSelectModel, activeModelId, onOpenNewModel, re
             setLoading(false);
         } catch (error) {
             console.error('Error fetching models:', error);
+            setError('Failed to load');
             setLoading(false);
         }
     };
@@ -326,16 +330,16 @@ const GroupModels = ({ groupId, onSelectModel, activeModelId, onOpenNewModel, re
     return (
         <List component="div" disablePadding>
             {loading ? (
-                <ListItem sx={{ pl: 6 }}><Typography variant="caption">Loading...</Typography></ListItem>
+                <ListItem sx={{ pl: 6 }}><Typography variant="caption" sx={{ color: colors.textPrimary, opacity: 0.5 }}>Loading...</Typography></ListItem>
+            ) : error ? (
+                <ListItem sx={{ pl: 6 }}><Typography variant="caption" color="error">{error}</Typography></ListItem>
             ) : models.length === 0 ? (
-                <ListItem sx={{ pl: 6 }}><Typography variant="caption" sx={{ fontStyle: 'italic' }}>No models</Typography></ListItem>
+                <ListItem sx={{ pl: 6 }}><Typography variant="caption" sx={{ fontStyle: 'italic', color: colors.textPrimary, opacity: 0.5 }}>No models found</Typography></ListItem>
             ) : (
                 models.map((model) => (
                     <ListItem
-                        button
                         key={model.id}
-                        onClick={() => onSelectModel(model)}
-                        selected={activeModelId === model.id}
+                        disablePadding
                         secondaryAction={
                             <IconButton
                                 edge="end"
@@ -346,25 +350,39 @@ const GroupModels = ({ groupId, onSelectModel, activeModelId, onOpenNewModel, re
                                 <MdDelete size={14} />
                             </IconButton>
                         }
-                        sx={{
-                            pl: 6,
-                            py: 0.5,
-                            '&.Mui-selected': {
-                                backgroundColor: 'rgba(0, 82, 204, 0.08)',
-                                color: '#0052CC',
-                                borderRight: '3px solid #0052CC'
-                            }
-                        }}
                     >
-                        <MdSchema style={{ marginRight: 8, fontSize: 14 }} />
-                        <ListItemText
-                            primary={model.name}
-                            primaryTypographyProps={{ variant: 'caption', fontWeight: 500 }}
-                        />
+                        <Box
+                            onClick={() => onSelectModel(model)}
+                            sx={{
+                                pl: 6,
+                                py: 0.5,
+                                flex: 1,
+                                display: 'flex',
+                                alignItems: 'center',
+                                cursor: 'pointer',
+                                transition: 'all 0.2s',
+                                borderRight: activeModelId === model.id ? `3px solid #0052CC` : 'none',
+                                backgroundColor: activeModelId === model.id ? 'rgba(0, 82, 204, 0.08)' : 'transparent',
+                                color: activeModelId === model.id ? '#0052CC' : colors.textPrimary,
+                                '&:hover': {
+                                    backgroundColor: 'rgba(0, 82, 204, 0.04)'
+                                }
+                            }}
+                        >
+                            <MdSchema style={{ marginRight: 8, fontSize: 14, opacity: 0.7 }} />
+                            <ListItemText
+                                primary={model.name}
+                                primaryTypographyProps={{ variant: 'caption', fontWeight: activeModelId === model.id ? 700 : 500 }}
+                            />
+                        </Box>
                     </ListItem>
                 ))
             )}
-            <ListItem button sx={{ pl: 6, py: 0.5, color: '#0052CC' }} onClick={onOpenNewModel}>
+            <ListItem
+                button
+                sx={{ pl: 6, py: 0.5, color: '#0052CC', '&:hover': { backgroundColor: 'rgba(0, 82, 204, 0.04)' } }}
+                onClick={onOpenNewModel}
+            >
                 <MdAdd style={{ marginRight: 8, fontSize: 14 }} />
                 <Typography variant="caption" fontWeight="600">New Model</Typography>
             </ListItem>

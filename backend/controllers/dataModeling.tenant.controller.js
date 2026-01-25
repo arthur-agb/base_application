@@ -104,12 +104,14 @@ export const getModelDetails = asyncHandler(async (req, res) => {
 export const saveModel = asyncHandler(async (req, res) => {
     const {
         id,
-        groupId,
         name,
         description,
+        groupId,
         connectionId,
         tables,
-        relationships
+        relationships,
+        filters,
+        isGroupByAll
     } = req.body;
 
     if (!groupId) {
@@ -127,7 +129,7 @@ export const saveModel = asyncHandler(async (req, res) => {
             // Update existing model
             model = await tx.dataModel.update({
                 where: { id },
-                data: { name, description, connectionId, groupId }
+                data: { name, description, connectionId, groupId, filters, isGroupByAll }
             });
 
             // Wipe existing tables/rels and recreate (simplest way to handle updates for visual canvas)
@@ -136,7 +138,7 @@ export const saveModel = asyncHandler(async (req, res) => {
         } else {
             // Create new model
             model = await tx.dataModel.create({
-                data: { name, description, connectionId, groupId }
+                data: { name, description, connectionId, groupId, filters, isGroupByAll }
             });
         }
 
@@ -148,7 +150,8 @@ export const saveModel = asyncHandler(async (req, res) => {
                     modelId: model.id,
                     tableName: table.tableName,
                     schema: table.schema,
-                    columns: table.columns, // ADDED
+                    columns: table.columns,
+                    selectedColumns: table.selectedColumns, // ADDED
                     alias: table.alias,
                     x: table.x || 0,
                     y: table.y || 0
@@ -210,10 +213,14 @@ export const deleteModel = asyncHandler(async (req, res) => {
     res.json({ message: 'Model deleted successfully' });
 });
 
-/**
- * Helper to generate SQL from model data
- */
-const generateSql = (tables, relationships) => {
+const generateSql = (tables, relationships, filters = null, isGroupByAll = false) => {
+    // Handle manual SQL override check
+    if (filters && typeof filters === 'object' && !Array.isArray(filters)) {
+        if (filters.isManual && filters.manualSql) {
+            return filters.manualSql;
+        }
+    }
+
     if (!tables || tables.length === 0) return null;
 
     // Helper to escape identifiers
@@ -240,7 +247,37 @@ const generateSql = (tables, relationships) => {
     joinedTableIds.add(baseTable.id);
 
     const baseAlias = aliasMap[baseTable.id];
-    let sql = `SELECT * \nFROM ${qualify(baseTable)} AS ${escape(baseAlias)}`;
+
+    // -- Column Selection Logic --
+    const selectedColumnsList = [];
+    tables.forEach(table => {
+        const alias = aliasMap[table.id];
+        if (table.selectedColumns && Array.isArray(table.selectedColumns) && table.selectedColumns.length > 0) {
+            table.selectedColumns.forEach(col => {
+                if (col.hidden) return;
+
+                let colExpr = `${escape(alias)}.${escape(col.name)}`;
+                if (col.aggregation && col.aggregation !== 'NONE') {
+                    colExpr = `${col.aggregation}(${colExpr})`;
+                }
+
+                if (col.alias) {
+                    colExpr += ` AS ${escape(col.alias)}`;
+                } else if (col.aggregation && col.aggregation !== 'NONE') {
+                    // Default alias for aggregations if none provided
+                    colExpr += ` AS ${escape(`${col.aggregation.toLowerCase()}_${col.name}`)}`;
+                }
+
+                selectedColumnsList.push(colExpr);
+            });
+        }
+    });
+
+    const selectClause = selectedColumnsList.length > 0
+        ? selectedColumnsList.join(', \n       ')
+        : '*';
+
+    let sql = `SELECT ${selectClause} \nFROM ${qualify(baseTable)} AS ${escape(baseAlias)}`;
 
     // Keep track of processed relationships to avoid duplicates/infinite loops if graph is messy
     const processedRelIds = new Set();
@@ -304,6 +341,52 @@ const generateSql = (tables, relationships) => {
         }
     });
 
+    // -- WHERE Filters --
+    let activeFilters = filters;
+    if (filters && typeof filters === 'object' && !Array.isArray(filters)) {
+        activeFilters = filters.conditions || [];
+    }
+
+    if (activeFilters && Array.isArray(activeFilters) && activeFilters.length > 0) {
+        const whereClauses = activeFilters.map(f => {
+            // Find the table and its alias
+            const table = tables.find(t => t.id === f.tableId);
+            const alias = table ? aliasMap[table.id] : null;
+            if (!alias) return null;
+
+            const colRef = `${escape(alias)}.${escape(f.column)}`;
+            let val = f.value;
+
+            // Basic type handling (simplified)
+            if (typeof val === 'string' && f.operator !== 'IN') {
+                val = `'${val.replace(/'/g, "''")}'`;
+            }
+
+            switch (f.operator) {
+                case 'EQ': return `${colRef} = ${val}`;
+                case 'NEQ': return `${colRef} <> ${val}`;
+                case 'GT': return `${colRef} > ${val}`;
+                case 'LT': return `${colRef} < ${val}`;
+                case 'GTE': return `${colRef} >= ${val}`;
+                case 'LTE': return `${colRef} <= ${val}`;
+                case 'LIKE': return `${colRef} LIKE '${f.value}'`;
+                case 'IN': return `${colRef} IN (${Array.isArray(val) ? val.join(', ') : val})`;
+                case 'IS_NULL': return `${colRef} IS NULL`;
+                case 'IS_NOT_NULL': return `${colRef} IS NOT NULL`;
+                default: return null;
+            }
+        }).filter(c => c !== null);
+
+        if (whereClauses.length > 0) {
+            sql += `\nWHERE ${whereClauses.join(' AND ')}`;
+        }
+    }
+
+    // -- GROUP BY ALL --
+    if (isGroupByAll) {
+        sql += `\nGROUP BY ALL`;
+    }
+
     return sql;
 };
 
@@ -352,11 +435,14 @@ export const executeModelQuery = asyncHandler(async (req, res) => {
     }
 
     // -- Dynamic SQL Generation Logic --
-    const sqlBase = generateSql(model.tables, model.relationships);
+    const sqlBase = generateSql(model.tables, model.relationships, model.filters, model.isGroupByAll);
     if (!sqlBase) {
         return res.status(400).json({ message: 'Model must have at least one table' });
     }
-    const sql = `${sqlBase} LIMIT ${rowLimit}`;
+
+    // Only append LIMIT if it's not already present at the end of the query
+    const hasLimit = /\blimit\s+\d+\s*$/i.test(sqlBase.trim());
+    const sql = hasLimit ? sqlBase : `${sqlBase} LIMIT ${rowLimit}`;
 
     // -- Execution on Databricks --
     const client = new DBSQLClient();
@@ -404,12 +490,14 @@ export const executeDraftModelQuery = asyncHandler(async (req, res) => {
         return res.status(404).json({ message: 'Connection not found' });
     }
 
-    const sqlBase = generateSql(tables, relationships);
+    const sqlBase = generateSql(tables, relationships, req.body.filters, req.body.isGroupByAll);
     if (!sqlBase) {
         return res.status(400).json({ message: 'No tables configured' });
     }
 
-    const sql = `${sqlBase} LIMIT ${rowLimit}`;
+    // Only append LIMIT if it's not already present at the end of the query
+    const hasLimit = /\blimit\s+\d+\s*$/i.test(sqlBase.trim());
+    const sql = hasLimit ? sqlBase : `${sqlBase} LIMIT ${rowLimit}`;
 
     Logger.info(`[Data Modeler] Executing DRAFT SQL:\n${sql}`);
 
@@ -529,6 +617,7 @@ export const batchValidateCardinality = asyncHandler(async (req, res) => {
         await client.connect({ host: connection.host, path: connection.httpPath, token: connection.token });
         const session = await client.openSession();
 
+        const reports = [];
         const issues = [];
         for (const rel of relationships) {
             const source = tables.find(t => t.id === rel.fromTableId);
@@ -570,12 +659,24 @@ export const batchValidateCardinality = asyncHandler(async (req, res) => {
                 const sourceIsMany = sourceRes.total_rows > sourceRes.distinct_keys;
                 const targetIsMany = targetRes.total_rows > targetRes.distinct_keys;
 
+                const cardinality = sourceIsMany && targetIsMany ? 'MANY_TO_MANY' :
+                    sourceIsMany ? 'MANY_TO_ONE' :
+                        targetIsMany ? 'ONE_TO_MANY' : 'ONE_TO_ONE';
+
+                const report = {
+                    id: rel.id || `e_${rel.fromTableId}_${rel.toTableId}`,
+                    sourceLabel: source.tableName,
+                    targetLabel: target.tableName,
+                    sourceStats: { total: sourceRes.total_rows, distinct: sourceRes.distinct_keys },
+                    targetStats: { total: targetRes.total_rows, distinct: targetRes.distinct_keys },
+                    cardinality
+                };
+                reports.push(report);
+
                 if (sourceIsMany && targetIsMany) {
                     issues.push({
-                        id: rel.id || `e_${rel.fromTableId}_${rel.toTableId}`,
-                        type: 'MANY_TO_MANY',
-                        sourceLabel: source.tableName,
-                        targetLabel: target.tableName
+                        ...report,
+                        type: 'MANY_TO_MANY'
                     });
                 }
             }
@@ -583,7 +684,7 @@ export const batchValidateCardinality = asyncHandler(async (req, res) => {
 
         await session.close();
         await client.close();
-        res.json({ issues, validated: true });
+        res.json({ issues, reports, validated: true });
 
     } catch (error) {
         Logger.error(`[Data Modeler] Batch validation failed: ${error.message}`);

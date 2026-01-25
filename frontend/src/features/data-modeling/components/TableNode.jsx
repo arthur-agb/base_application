@@ -84,37 +84,89 @@ const TableNode = ({ data }) => {
             </Box>
 
             {/* Column List */}
-            <Box sx={{ p: 1, maxHeight: 150, overflowY: 'auto' }}>
+            <Box sx={{ p: 1, maxHeight: 180, overflowY: 'auto' }}>
                 <Stack spacing={0.5}>
-                    {data.columns && data.columns.length > 0 ? data.columns.map((col, idx) => (
-                        <Box key={idx} sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                            {/* Visual indicator: highlighted if connected, faint if not */}
-                            <Box sx={{
-                                width: 4,
-                                height: 4,
-                                borderRadius: '50%',
-                                bgcolor: data.connectedColumns?.has(col.name) ? '#0052CC' : colors.textPrimary,
-                                opacity: data.connectedColumns?.has(col.name) ? 1 : 0.3
-                            }} />
-                            <Typography
-                                variant="caption"
+                    {data.columns && data.columns.length > 0 ? data.columns.map((col, idx) => {
+                        const colName = col.name || col;
+                        const selection = data.selectedColumns?.find(c => c.name === colName);
+                        const isSelected = !!selection;
+                        const isConnected = data.connectedColumns?.has(colName);
+
+                        return (
+                            <Box
+                                key={idx}
+                                onClick={() => data.onToggleColumn && data.onToggleColumn(colName)}
                                 sx={{
-                                    fontSize: '0.65rem',
-                                    opacity: data.connectedColumns?.has(col.name) ? 1 : 0.8,
-                                    fontWeight: data.connectedColumns?.has(col.name) ? 600 : 400,
-                                    color: data.connectedColumns?.has(col.name) ? '#0052CC' : 'inherit'
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: 0.5,
+                                    cursor: 'pointer',
+                                    p: '2px 4px',
+                                    borderRadius: '4px',
+                                    '&:hover': { bgcolor: 'rgba(0,0,0,0.05)' },
+                                    bgcolor: isSelected ? 'rgba(0, 82, 204, 0.05)' : 'transparent'
                                 }}
                             >
-                                {col.name || col}
-                            </Typography>
-                            {/* Optional: Show type if available */}
-                            {(col.type || col.typeName) && (
-                                <Typography variant="caption" sx={{ fontSize: '0.6rem', opacity: 0.4, ml: 'auto' }}>
-                                    {col.type || col.typeName}
+                                {/* Selection Indicator */}
+                                <Box sx={{
+                                    width: 14,
+                                    height: 14,
+                                    borderRadius: '3px',
+                                    border: `1px solid ${isSelected ? '#0052CC' : '#ccc'}`,
+                                    bgcolor: isSelected ? '#0052CC' : 'transparent',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    mr: 0.5
+                                }}>
+                                    {isSelected && (
+                                        <Typography sx={{
+                                            color: 'white',
+                                            fontSize: '0.6rem',
+                                            fontWeight: 'bold',
+                                            lineHeight: 1
+                                        }}>
+                                            {selection.aggregation && selection.aggregation !== 'NONE' ? 'Σ' : (selection.alias ? 'ƒ' : '✓')}
+                                        </Typography>
+                                    )}
+                                </Box>
+
+                                <Typography
+                                    variant="caption"
+                                    sx={{
+                                        fontSize: '0.65rem',
+                                        opacity: isSelected || isConnected ? 1 : 0.6,
+                                        fontWeight: isSelected || isConnected ? 600 : 400,
+                                        color: isConnected ? '#0052CC' : isSelected ? 'inherit' : 'text.secondary',
+                                        flex: 1
+                                    }}
+                                >
+                                    {colName}
                                 </Typography>
-                            )}
-                        </Box>
-                    )) : !isLoading && (
+
+                                {selection?.alias && (
+                                    <Typography variant="caption" sx={{ fontSize: '0.6rem', color: 'primary.main', fontStyle: 'italic', ml: 0.5 }}>
+                                        as {selection.alias}
+                                    </Typography>
+                                )}
+
+                                {selection?.aggregation && selection.aggregation !== 'NONE' && (
+                                    <Chip
+                                        label={selection.aggregation}
+                                        size="small"
+                                        sx={{ height: 14, fontSize: '0.5rem', bgcolor: 'primary.main', color: 'white' }}
+                                    />
+                                )}
+
+                                {/* Type (only if not aggregated or if it's the base type) */}
+                                {!selection?.aggregation && (col.type || col.typeName) && (
+                                    <Typography variant="caption" sx={{ fontSize: '0.6rem', opacity: 0.4 }}>
+                                        {col.type || col.typeName}
+                                    </Typography>
+                                )}
+                            </Box>
+                        );
+                    }) : !isLoading && (
                         <Typography variant="caption" sx={{ fontSize: '0.7rem', fontStyle: 'italic', opacity: 0.6 }}>
                             Drop to fetch columns...
                         </Typography>
